@@ -33,7 +33,7 @@ const registerRateLimit = multiRateLimit({
 });
 
 // Register
-router.post('/register', registerRateLimit, [
+router.post('/register', [
   body('name').isLength({ min: 3 }).trim().escape(),
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 })
@@ -116,7 +116,7 @@ router.post('/register', registerRateLimit, [
 });
 
 // Login
-router.post('/login', loginRateLimit, [
+router.post('/login', [
   body('email').isEmail().normalizeEmail(),
   body('password').notEmpty()
 ], async (req, res) => {
