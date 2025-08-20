@@ -81,21 +81,9 @@ async function initializeServices() {
     await mongoose.connect(process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/veeqai');
     logger.info('✅ [DATABASE] MongoDB connected successfully');
     
-    // Initialize Redis (optional - will fallback if not available)
-    try {
-      await RedisManager.initialize();
-      await EventBus.initialize();
-      await JobQueue.initialize();
-      await WebSocketManager.initialize(server);
-      
-      // Start music processor
-      MusicProcessor.start();
-      logger.info('✅ [SERVICES] All services initialized successfully');
-    } catch (redisError) {
-      logger.warn('⚠️ [SERVICES] Redis not available - continuing without real-time features:', redisError.message);
-      // Set flags to indicate Redis is not available
-      RedisManager.isConnected = false;
-    }
+    // Temporarily disable Redis to fix CORS
+    logger.warn('⚠️ [SERVICES] Redis temporarily disabled - continuing without real-time features');
+    logger.info('✅ [SERVICES] Basic services initialized successfully');
     
     // Start server
     const PORT = process.env.PORT || 5000;
