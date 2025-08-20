@@ -81,8 +81,14 @@ async function initializeServices() {
     await mongoose.connect(process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/veeqai');
     logger.info('✅ [DATABASE] MongoDB connected successfully');
     
-    // Temporarily disable Redis to fix CORS
-    logger.warn('⚠️ [SERVICES] Redis temporarily disabled - continuing without real-time features');
+    // Initialize WebSocket without Redis
+    try {
+      await WebSocketManager.initialize(server);
+      logger.info('✅ [SERVICES] WebSocket initialized without Redis');
+    } catch (wsError) {
+      logger.warn('⚠️ [WEBSOCKET] Failed to initialize:', wsError.message);
+    }
+    
     logger.info('✅ [SERVICES] Basic services initialized successfully');
     
     // Start server

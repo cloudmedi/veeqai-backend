@@ -49,8 +49,8 @@ class WebSocketManager {
         allowEIO3: true
       });
 
-      // Setup Redis adapter for multi-instance support
-      await this.setupRedisAdapter();
+      // Skip Redis adapter for now
+      logger.warn('⚠️ [WEBSOCKET] Running without Redis adapter');
       
       // Setup authentication middleware
       this.setupAuthMiddleware();
@@ -58,8 +58,8 @@ class WebSocketManager {
       // Setup connection handling
       this.setupConnectionHandling();
       
-      // Subscribe to EventBus for broadcasting
-      this.subscribeToEventBus();
+      // Skip EventBus subscription
+      logger.warn('⚠️ [WEBSOCKET] EventBus disabled');
       
       // Setup monitoring and health checks
       this.setupMonitoring();
