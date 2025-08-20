@@ -66,6 +66,8 @@ class RedisManager extends EventEmitter {
 
   getRedisConfig() {
     // Use REDIS_URL if available (Railway format)
+    console.log('🔍 [REDIS] REDIS_URL:', process.env.REDIS_URL ? 'Found' : 'Not found');
+    console.log('🔍 [REDIS] REDISHOST:', process.env.REDISHOST);
     if (process.env.REDIS_URL) {
       const baseConfig = {
         url: process.env.REDIS_URL,
@@ -85,11 +87,11 @@ class RedisManager extends EventEmitter {
       };
     }
     
-    // Fallback to individual configs
+    // Fallback to individual configs (Railway variables)
     const baseConfig = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379,
-      password: process.env.REDIS_PASSWORD,
+      host: process.env.REDISHOST || process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDISPORT || process.env.REDIS_PORT || 6379,
+      password: process.env.REDISPASSWORD || process.env.REDIS_PASSWORD,
       retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       lazyConnect: true,
