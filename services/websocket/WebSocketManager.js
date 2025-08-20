@@ -32,13 +32,7 @@ class WebSocketManager {
       // Initialize Socket.IO with Redis adapter
       this.io = new Server(server, {
         cors: {
-          origin: [
-            process.env.FRONTEND_URL || 'http://localhost:5173',
-            process.env.SUPER_ADMIN_URL || 'http://localhost:5174',
-            'http://localhost:5175', // Webpage
-            'http://127.0.0.1:5175', // Webpage alt
-            'http://localhost:3000' // For development
-          ],
+          origin: true,
           credentials: true
         },
         transports: ['websocket', 'polling'],
