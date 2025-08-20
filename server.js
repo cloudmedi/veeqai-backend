@@ -84,7 +84,7 @@ app.use((err, req, res, next) => {
 async function initializeServices() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/veeqai');
+    await mongoose.connect(process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/veeqai');
     logger.info('✅ [DATABASE] MongoDB connected successfully');
     
     // Initialize Redis (optional - will fallback if not available)
