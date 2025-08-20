@@ -84,6 +84,8 @@ app.use((err, req, res, next) => {
 async function initializeServices() {
   try {
     // Connect to MongoDB
+    console.log('MONGO_URL:', process.env.MONGO_URL);
+    console.log('MONGODB_URI:', process.env.MONGODB_URI);
     await mongoose.connect(process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/veeqai');
     logger.info('✅ [DATABASE] MongoDB connected successfully');
     
