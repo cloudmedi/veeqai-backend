@@ -97,6 +97,7 @@ async function initializeServices() {
     
     // Start server
     const PORT = process.env.PORT || 5000;
+    console.log('Starting server on PORT:', PORT);
     server.listen(PORT, () => {
       logger.info(`🚀 [SERVER] Running on port ${PORT}`);
     });
