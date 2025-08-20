@@ -65,6 +65,27 @@ class RedisManager extends EventEmitter {
   }
 
   getRedisConfig() {
+    // Use REDIS_URL if available (Railway format)
+    if (process.env.REDIS_URL) {
+      const baseConfig = {
+        url: process.env.REDIS_URL,
+        retryDelayOnFailover: 100,
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+        keepAlive: 30000,
+        family: 4,
+        connectTimeout: 10000,
+        commandTimeout: 5000
+      };
+      
+      return {
+        publisher: baseConfig,
+        subscriber: baseConfig,
+        cache: baseConfig
+      };
+    }
+    
+    // Fallback to individual configs
     const baseConfig = {
       host: process.env.REDIS_HOST || 'localhost',
       port: process.env.REDIS_PORT || 6379,
