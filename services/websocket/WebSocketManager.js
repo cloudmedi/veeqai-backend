@@ -539,11 +539,8 @@ class WebSocketManager {
 
   async updateUserActivity(userId, activity = {}) {
     try {
-      // Update activity in cache
-      await RedisManager.setCache(`activity:${userId}`, {
-        lastSeen: Date.now(),
-        ...activity
-      }, 3600); // 1 hour TTL
+      // Skip Redis cache - store in memory for now
+      logger.debug('📊 [WEBSOCKET] User activity updated:', { userId, lastSeen: Date.now(), ...activity });
       
     } catch (error) {
       logger.error('❌ [WEBSOCKET] Failed to update user activity:', error);
@@ -602,7 +599,7 @@ class WebSocketManager {
     return {
       status: this.io ? 'healthy' : 'unhealthy',
       metrics,
-      redis: RedisManager.isConnected ? 'connected' : 'disconnected',
+      redis: 'disabled',
       timestamp: Date.now()
     };
   }
