@@ -75,24 +75,24 @@ const planSchema = new mongoose.Schema({
     }
   },
   
-  // Credit System (Unified)
+  // Service Allowances (No longer credit-based)
   credits: {
-    // Monthly credit allowance
+    // Monthly service allowance (internal calculation)
     monthly: {
       type: Number,
       required: true,
       default: 0
     },
     
-    // Credit rates for different services
+    // Service conversion rates (internal use only)
     rates: {
-      // Text-to-Speech: 1 character = 1 credit
+      // Text-to-Speech service rate
       tts: {
         type: Number,
         default: 1
       },
       
-      // Music Generation: per 30 seconds
+      // Music Generation service rate
       music: {
         per30Seconds: {
           type: Number,
@@ -104,7 +104,7 @@ const planSchema = new mongoose.Schema({
         }
       },
       
-      // Voice Cloning: one-time cost per voice
+      // Voice Cloning service rate
       voiceClone: {
         creation: {
           type: Number,
@@ -116,7 +116,7 @@ const planSchema = new mongoose.Schema({
         }
       },
       
-      // Voice Isolator: per minute of audio
+      // Voice Isolator service rate
       voiceIsolator: {
         perMinute: {
           type: Number,
@@ -125,7 +125,7 @@ const planSchema = new mongoose.Schema({
       }
     },
     
-    // Credit rollover settings
+    // Service rollover settings
     rollover: {
       enabled: {
         type: Boolean,
@@ -386,18 +386,18 @@ planSchema.methods.hasFeature = function(feature) {
   return this.features[feature] === true;
 };
 
-// Check if credit limit is exceeded
-planSchema.methods.checkCreditLimit = function(currentCredits) {
+// Check if service usage limit is exceeded
+planSchema.methods.checkServiceLimit = function(currentUsage) {
   const monthlyLimit = this.credits.monthly;
   if (monthlyLimit === -1) return true; // Unlimited
-  return currentCredits < monthlyLimit;
+  return currentUsage < monthlyLimit;
 };
 
-// Calculate credit cost for service
-planSchema.methods.calculateCreditCost = function(service, params = {}) {
+// Calculate service usage cost (internal calculation)
+planSchema.methods.calculateServiceCost = function(service, params = {}) {
   const rates = this.credits.rates;
   
-  console.log(`💰 [PLAN-DEBUG] Calculating credit cost:`, {
+  console.log(`💰 [PLAN-DEBUG] Calculating service usage:`, {
     planName: this.name,
     service,
     params,
