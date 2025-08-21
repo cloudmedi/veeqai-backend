@@ -74,25 +74,26 @@ console.log('🔄 [DEBUG] Applying monitoring middleware...');
 app.use(monitoring.middleware());
 console.log('🔄 [DEBUG] Monitoring middleware applied');
 
-// Routes
-console.log('🔄 [DEBUG] Loading routes...');
-console.log('🔄 [DEBUG] Loading auth routes...');
-app.use('/api/auth', require('./routes/auth'));
-console.log('🔄 [DEBUG] Loading public routes...');
-app.use('/api/public', require('./routes/public')); // Public routes - NO AUTH
-console.log('🔄 [DEBUG] Loading music routes...');
-app.use('/api/music', require('./routes/music'));
-console.log('🔄 [DEBUG] Loading speech routes...');
-app.use('/api/speech', require('./routes/speech'));
-console.log('🔄 [DEBUG] Loading voices routes...');
-app.use('/api/voices', require('./routes/voices')); // Voice models and TTS
-console.log('🔄 [DEBUG] Loading payment routes...');
-app.use('/api/payment', require('./routes/payment')); // Production payment routes with Iyzico
-console.log('🔄 [DEBUG] Payment routes loaded');
-console.log('🔄 [DEBUG] Loading admin routes...');
-// app.use('/api/preferences', require('./routes/preferences')); // Disabled due to dependency conflicts
-app.use('/api/admin', require('./routes/admin'));
-console.log('🔄 [DEBUG] All routes loaded successfully');
+// Routes will be loaded after DB connection
+function loadRoutes() {
+  console.log('🔄 [DEBUG] Loading routes...');
+  console.log('🔄 [DEBUG] Loading auth routes...');
+  app.use('/api/auth', require('./routes/auth'));
+  console.log('🔄 [DEBUG] Loading public routes...');
+  app.use('/api/public', require('./routes/public')); // Public routes - NO AUTH
+  console.log('🔄 [DEBUG] Loading music routes...');
+  app.use('/api/music', require('./routes/music'));
+  console.log('🔄 [DEBUG] Loading speech routes...');
+  app.use('/api/speech', require('./routes/speech'));
+  console.log('🔄 [DEBUG] Loading voices routes...');
+  app.use('/api/voices', require('./routes/voices')); // Voice models and TTS
+  console.log('🔄 [DEBUG] Loading payment routes...');
+  app.use('/api/payment', require('./routes/payment')); // Production payment routes with Iyzico
+  console.log('🔄 [DEBUG] Payment routes loaded');
+  console.log('🔄 [DEBUG] Loading admin routes...');
+  app.use('/api/admin', require('./routes/admin'));
+  console.log('🔄 [DEBUG] All routes loaded successfully');
+}
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -130,6 +131,11 @@ async function initializeServices() {
     await mongoose.connect(process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/veeqai');
     console.log('🔄 [DEBUG] Step 2 - MongoDB connected successfully');
     logger.info('✅ [DATABASE] MongoDB connected successfully');
+    
+    // Load routes AFTER MongoDB connection
+    console.log('🔄 [DEBUG] Step 2.5 - Loading routes after DB connection...');
+    loadRoutes();
+    console.log('🔄 [DEBUG] Routes loaded successfully after DB connection');
     
     console.log('🔄 [DEBUG] Step 3 - Starting WebSocket initialization...');
     // Initialize WebSocket without Redis
