@@ -87,8 +87,8 @@ app.use('/api/speech', require('./routes/speech'));
 console.log('🔄 [DEBUG] Loading voices routes...');
 app.use('/api/voices', require('./routes/voices')); // Voice models and TTS
 console.log('🔄 [DEBUG] Loading payment routes...');
-app.use('/api/payment', require('./routes/payment-simple')); // Simple payment routes for testing
-console.log('🔄 [DEBUG] Simple payment routes loaded');
+app.use('/api/payment', require('./routes/payment')); // Production payment routes with Iyzico
+console.log('🔄 [DEBUG] Payment routes loaded');
 console.log('🔄 [DEBUG] Loading admin routes...');
 // app.use('/api/preferences', require('./routes/preferences')); // Disabled due to dependency conflicts
 app.use('/api/admin', require('./routes/admin'));
