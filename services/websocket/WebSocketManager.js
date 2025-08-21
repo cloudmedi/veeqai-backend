@@ -32,8 +32,17 @@ class WebSocketManager {
       // Initialize Socket.IO with Redis adapter
       this.io = new Server(server, {
         cors: {
-          origin: true,
-          credentials: true
+          origin: [
+            'https://app.veeq.ai',
+            'https://veeq.ai', 
+            'https://www.veeq.ai',
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175'
+          ],
+          credentials: true,
+          methods: ['GET', 'POST']
         },
         transports: ['websocket', 'polling'],
         pingTimeout: 60000,

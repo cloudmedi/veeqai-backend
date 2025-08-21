@@ -59,10 +59,30 @@ console.log('🔄 [DEBUG] Security headers applied');
 // Middleware
 console.log('🔄 [DEBUG] Applying CORS...');
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: [
+    'https://app.veeq.ai',
+    'https://veeq.ai', 
+    'https://www.veeq.ai',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+  optionsSuccessStatus: 200
 }));
 console.log('🔄 [DEBUG] CORS applied');
+
+// Handle preflight OPTIONS requests
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
 
 console.log('🔄 [DEBUG] Applying JSON middleware...');
 app.use(express.json());
