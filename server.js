@@ -155,12 +155,28 @@ async function initializeServices() {
     const PORT = process.env.PORT || 5000;
     const HOST = process.env.HOST || '0.0.0.0';
     console.log('Starting server on HOST:', HOST, 'PORT:', PORT);
-    server.listen(PORT, HOST, () => {
+    
+    server.listen(PORT, HOST, (error) => {
+      if (error) {
+        console.error('❌ [SERVER] Failed to start:', error);
+        logger.error('❌ [SERVER] Failed to start:', error);
+        process.exit(1);
+      }
+      
       console.log('🔄 [DEBUG] Step 6 - Server started successfully on', HOST + ':' + PORT);
       logger.info(`🚀 [SERVER] Running on ${HOST}:${PORT}`);
+      console.log('🔄 [DEBUG] Step 7 - Initialization completed');
+      logger.info('✅ [SERVER] Initialization completed successfully');
     });
     
-    console.log('🔄 [DEBUG] Step 7 - Initialization completed');
+    server.on('error', (error) => {
+      console.error('❌ [SERVER] Server error:', error);
+      logger.error('❌ [SERVER] Server error:', error);
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ [SERVER] Port ${PORT} is already in use`);
+        process.exit(1);
+      }
+    });
     
   } catch (error) {
     console.error('❌ [SERVER] Initialization failed:', error);
