@@ -1,30 +1,43 @@
 const redis = require('redis');
 
-// Create Redis client with proper error handling
+// Redis with proper Railway configuration
 let client = null;
 let isRedisConnected = false;
 
 try {
+  // Railway Redis URL should be public endpoint, not internal
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  console.log('Connecting to Redis:', redisUrl.replace(/:[^:]*@/, ':***@')); // Hide password in log
+  
   client = redis.createClient({
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
+    url: redisUrl,
+    socket: {
+      connectTimeout: 5000,
+      reconnectStrategy: (retries) => retries > 3 ? false : Math.min(retries * 50, 500)
+    }
   });
   
   client.on('error', (err) => {
-    console.log('Redis Client Error (rateLimit):', err.message);
+    console.log('Redis Error (rateLimit):', err.code, err.message);
     isRedisConnected = false;
   });
   
   client.on('connect', () => {
-    console.log('Redis connected for rate limiting');
+    console.log('✅ Redis connected for rate limiting');
     isRedisConnected = true;
   });
   
+  client.on('disconnect', () => {
+    console.log('Redis disconnected (rateLimit)');
+    isRedisConnected = false;
+  });
+  
   client.connect().catch((err) => {
-    console.log('Redis connection failed (rateLimit), continuing without rate limiting:', err.message);
+    console.log('❌ Redis connection failed (rateLimit):', err.code, err.message);
     isRedisConnected = false;
   });
 } catch (err) {
-  console.log('Redis initialization failed (rateLimit):', err.message);
+  console.log('❌ Redis initialization failed (rateLimit):', err.message);
   isRedisConnected = false;
 }
 

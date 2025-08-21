@@ -5,24 +5,35 @@ let client = null;
 let redisConnected = false;
 
 try {
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+  console.log('Connecting to Redis (verifyAccess):', redisUrl.replace(/:[^:]*@/, ':***@'));
+  
   client = redis.createClient({
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
+    url: redisUrl,
+    socket: {
+      connectTimeout: 5000,
+      reconnectStrategy: (retries) => retries > 3 ? false : Math.min(retries * 50, 500)
+    }
   });
   
   client.on('error', (err) => {
-    console.log('Redis Client Error (verifyAccess):', err.message);
+    console.log('Redis Error (verifyAccess):', err.code, err.message);
     redisConnected = false;
+  });
+  
+  client.on('connect', () => {
+    console.log('✅ Redis connected for verifyAccess');
+    redisConnected = true;
   });
   
   client.connect().then(() => {
     redisConnected = true;
-    console.log('Redis connected for verifyAccess');
   }).catch((err) => {
-    console.log('Redis connection failed (verifyAccess), continuing without session versioning');
+    console.log('❌ Redis connection failed (verifyAccess):', err.code, err.message);
     redisConnected = false;
   });
 } catch (err) {
-  console.log('Redis initialization failed (verifyAccess):', err.message);
+  console.log('❌ Redis initialization failed (verifyAccess):', err.message);
   redisConnected = false;
 }
 
