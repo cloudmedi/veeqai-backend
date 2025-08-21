@@ -1,10 +1,32 @@
 const redis = require('redis');
 
-const client = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
+// Create Redis client with proper error handling
+let client = null;
+let isRedisConnected = false;
 
-client.connect().catch(console.error);
+try {
+  client = redis.createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+  });
+  
+  client.on('error', (err) => {
+    console.log('Redis Client Error (rateLimit):', err.message);
+    isRedisConnected = false;
+  });
+  
+  client.on('connect', () => {
+    console.log('Redis connected for rate limiting');
+    isRedisConnected = true;
+  });
+  
+  client.connect().catch((err) => {
+    console.log('Redis connection failed (rateLimit), continuing without rate limiting:', err.message);
+    isRedisConnected = false;
+  });
+} catch (err) {
+  console.log('Redis initialization failed (rateLimit):', err.message);
+  isRedisConnected = false;
+}
 
 // Lua script for sliding window rate limiting with multiple keys
 const multiRateLimitScript = `
@@ -63,6 +85,11 @@ const multiRateLimit = (config) => {
   } = config;
 
   return async (req, res, next) => {
+    // Skip rate limiting if Redis is not connected
+    if (!isRedisConnected || !client) {
+      return next();
+    }
+    
     try {
       const ip = req.ip || req.connection.remoteAddress;
       const userId = getUserId ? getUserId(req) : null;
