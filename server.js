@@ -153,10 +153,11 @@ async function initializeServices() {
     
     // Start server
     const PORT = process.env.PORT || 5000;
-    console.log('Starting server on PORT:', PORT);
-    server.listen(PORT, () => {
-      console.log('🔄 [DEBUG] Step 6 - Server started successfully on port:', PORT);
-      logger.info(`🚀 [SERVER] Running on port ${PORT}`);
+    const HOST = process.env.HOST || '0.0.0.0';
+    console.log('Starting server on HOST:', HOST, 'PORT:', PORT);
+    server.listen(PORT, HOST, () => {
+      console.log('🔄 [DEBUG] Step 6 - Server started successfully on', HOST + ':' + PORT);
+      logger.info(`🚀 [SERVER] Running on ${HOST}:${PORT}`);
     });
     
     console.log('🔄 [DEBUG] Step 7 - Initialization completed');
