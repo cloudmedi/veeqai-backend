@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
-const authMiddleware = require('../middleware/auth');
+const { authenticate: authMiddleware } = require('../middleware/auth');
 // const rateLimit = require('../middleware/rateLimit'); // Temporarily disabled due to export issue
 
 // Middleware to parse raw body for webhooks
