@@ -319,8 +319,45 @@ const paymentController = {
       logger.info('📋 [PAYMENT] Getting available plans');
 
       const plans = await Plan.find({ 
-        isActive: true 
-      }).select('name displayName description pricing features credits isPopular');
+        status: 'active', // Use status instead of isActive 
+        isPublic: true
+      }).select('name displayName description pricing features credits display');
+
+      logger.info('📋 [PAYMENT] Found plans count:', plans.length);
+
+      if (plans.length === 0) {
+        // Return sample plans if none exist
+        const samplePlans = [
+          {
+            id: 'free',
+            name: 'free',
+            displayName: 'Free Plan',
+            description: 'Get started with basic features',
+            pricing: {
+              monthly: { amount: 0, currency: 'USD' },
+              yearly: null
+            },
+            features: { textToSpeech: true },
+            credits: { monthly: 1000 },
+            isPopular: false
+          },
+          {
+            id: 'starter',
+            name: 'starter', 
+            displayName: 'Starter Plan',
+            description: 'Perfect for individuals',
+            pricing: {
+              monthly: { amount: 9.99, currency: 'USD' },
+              yearly: { amount: 99.99, currency: 'USD', discount: 17 }
+            },
+            features: { textToSpeech: true, musicGeneration: true },
+            credits: { monthly: 10000 },
+            isPopular: true
+          }
+        ];
+        
+        return successResponse(res, { plans: samplePlans });
+      }
 
       const formattedPlans = plans.map(plan => ({
         id: plan._id,
@@ -340,7 +377,7 @@ const paymentController = {
         },
         features: plan.features,
         credits: plan.credits,
-        isPopular: plan.isPopular
+        isPopular: plan.display?.popular || false
       }));
 
       return successResponse(res, { plans: formattedPlans });
