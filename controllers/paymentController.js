@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const IyzicoService = require('../services/payment/IyzicoService');
 const WebhookHandler = require('../services/payment/WebhookHandler');
 const Payment = require('../models/Payment');
@@ -317,6 +318,12 @@ const paymentController = {
   async getPlans(req, res) {
     try {
       logger.info('📋 [PAYMENT] Getting available plans');
+
+      // Check if mongoose is connected
+      if (!mongoose.connection.readyState) {
+        logger.error('❌ [PAYMENT] Database not connected');
+        throw new Error('Database connection not ready');
+      }
 
       const plans = await Plan.find({ 
         status: 'active', // Use status instead of isActive 

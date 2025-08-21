@@ -60,7 +60,7 @@ class IyzicoService {
         throw new Error('User not found');
       }
       
-      if (!plan || !plan.isActive) {
+      if (!plan || plan.status !== 'active') {
         throw new Error('Plan not found or inactive');
       }
 
@@ -333,7 +333,7 @@ class IyzicoService {
       }
 
       // Create or update subscription
-      let subscription = await Subscription.findOne({ userId: payment.userId, isActive: true });
+      let subscription = await Subscription.findOne({ userId: payment.userId, status: 'active' });
       
       if (subscription) {
         // Update existing subscription

@@ -70,6 +70,44 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Simple plans test without database
+router.get('/plans-test', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      plans: [
+        {
+          id: 'free',
+          name: 'free',
+          displayName: 'Free Plan',
+          description: 'Get started with basic features',
+          pricing: {
+            monthly: { amount: 0, currency: 'TRY' },
+            yearly: null
+          },
+          features: { textToSpeech: true },
+          credits: { monthly: 1000 },
+          isPopular: false
+        },
+        {
+          id: 'starter',
+          name: 'starter', 
+          displayName: 'Starter Plan',
+          description: 'Perfect for individuals',
+          pricing: {
+            monthly: { amount: 29.99, currency: 'TRY' },
+            yearly: { amount: 299.99, currency: 'TRY', discount: 17 }
+          },
+          features: { textToSpeech: true, musicGeneration: true },
+          credits: { monthly: 10000 },
+          isPopular: true
+        }
+      ]
+    },
+    message: 'Plans retrieved successfully'
+  });
+});
+
 /**
  * @swagger
  * /api/payment/initiate:

@@ -447,7 +447,7 @@ class WebhookHandler {
       // Deactivate subscription if active
       const Subscription = require('../../models/Subscription');
       await Subscription.updateMany(
-        { userId: payment.userId, isActive: true },
+        { userId: payment.userId, status: 'active' },
         { 
           $set: { 
             status: 'cancelled',
