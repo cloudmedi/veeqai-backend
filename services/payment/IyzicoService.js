@@ -93,6 +93,8 @@ class IyzicoService {
       const currency = planCurrency.toUpperCase();
 
       logger.info('💰 [IYZICO] Payment currency:', currency);
+      logger.info('💳 [IYZICO] Plan pricing:', plan.pricing);
+      logger.info('💳 [IYZICO] Payment amount:', plan.pricing.monthly.amount);
 
       // Generate unique conversation ID
       const conversationId = `conv_${uuidv4()}`;
