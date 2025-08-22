@@ -293,7 +293,7 @@ class IyzicoService {
     try {
       // Get payment details from token to find the correct plan
       const { Payment, Plan } = this.getModels();
-      const payment = await Payment.findOne({ token: token }).populate('planId');
+      const payment = await Payment.findOne({ 'iyzicoData.token': token }).populate('planId');
       
       if (!payment || !payment.planId) {
         throw new Error('Payment or plan not found');
