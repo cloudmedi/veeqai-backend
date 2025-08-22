@@ -373,7 +373,7 @@ class IyzicoService {
         error: error.message || 'Ödeme işlemi hatası'
       };
     }
-  },
+  }
 
   /**
    * Process payment callback
