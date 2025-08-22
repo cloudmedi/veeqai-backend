@@ -165,4 +165,14 @@ class ResponseUtil {
   }
 }
 
+// Export class and convenience functions
 module.exports = ResponseUtil;
+
+// Convenience exports for backward compatibility
+module.exports.successResponse = (res, data, message = 'Success', status = 200) => {
+  return ResponseUtil.success(res, data, message, status);
+};
+
+module.exports.errorResponse = (res, message = 'An error occurred', status = 500, code = 'INTERNAL_ERROR', details = null) => {
+  return ResponseUtil.error(res, message, status, code, details);
+};
