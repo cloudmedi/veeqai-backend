@@ -137,7 +137,7 @@ class IyzicoService {
         basketId: `basket_${payment._id}`,
         paymentGroup: 'PRODUCT',
         callbackUrl: payment.callbackUrl,
-        enabledInstallments: [1],
+        // enabledInstallments: [1], // Disabled for multi-currency USD payments
         buyer: {
           id: user._id.toString(),
           name: user.name.split(' ')[0] || 'User',
@@ -316,7 +316,7 @@ class IyzicoService {
         price: plan.pricing.monthly.amount.toString(),
         paidPrice: plan.pricing.monthly.amount.toString(),
         currency: planCurrency,
-        installment: '1',
+        // installment: '1', // Removed for multi-currency support
         basketId: conversationId,
         paymentChannel: 'WEB',
         paymentGroup: 'PRODUCT',
