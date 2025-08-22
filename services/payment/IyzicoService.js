@@ -217,7 +217,9 @@ class IyzicoService {
           conversationId,
           paymentId: result.paymentId,
           paymentPageUrl: result.paymentPageUrl,
-          token: result.token
+          token: result.token,
+          // Include HTML content for popup/iframe integration
+          checkoutFormContent: result.checkoutFormContent || null
         };
 
         logger.info('💰 [IYZICO] Returning response data:', JSON.stringify(responseData, null, 2));
