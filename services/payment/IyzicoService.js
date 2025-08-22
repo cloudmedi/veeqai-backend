@@ -293,7 +293,7 @@ class IyzicoService {
     try {
       // Complete the checkout form with card details
       const paymentRequest = {
-        locale: Iyzico.LOCALE.TR,
+        locale: 'tr',
         conversationId: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         token: token,
         card: {
