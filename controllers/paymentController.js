@@ -43,6 +43,7 @@ const paymentController = {
         ip: clientIp 
       });
 
+      console.log('📋 [PAYMENT] Request body:', JSON.stringify(req.body, null, 2));
       logger.info('📋 [PAYMENT] Request body:', JSON.stringify(req.body, null, 2));
 
       const result = await IyzicoService.initiatePayment(userId, planId, billingInfo);
@@ -56,6 +57,7 @@ const paymentController = {
         token: result.token
       };
 
+      console.log('📤 [PAYMENT] Sending response to frontend:', JSON.stringify(responseData, null, 2));
       logger.info('📤 [PAYMENT] Sending response to frontend:', JSON.stringify(responseData, null, 2));
 
       return successResponse(res, responseData, 'Payment initialized successfully');

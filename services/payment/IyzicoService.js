@@ -93,6 +93,10 @@ class IyzicoService {
       const currency = planCurrency.toUpperCase();
 
       logger.info('💰 [IYZICO] Payment currency:', currency);
+      console.log('💳 [IYZICO] Plan found:', { id: plan._id, name: plan.name });
+      console.log('💳 [IYZICO] Plan pricing:', JSON.stringify(plan.pricing, null, 2));
+      console.log('💳 [IYZICO] Payment amount:', plan.pricing?.monthly?.amount);
+      
       logger.info('💳 [IYZICO] Plan found:', { id: plan._id, name: plan.name });
       logger.info('💳 [IYZICO] Plan pricing:', JSON.stringify(plan.pricing, null, 2));
       logger.info('💳 [IYZICO] Payment amount:', plan.pricing?.monthly?.amount);
