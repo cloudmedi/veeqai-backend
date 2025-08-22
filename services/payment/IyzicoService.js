@@ -311,25 +311,32 @@ class IyzicoService {
         token: token.substring(0, 20) + '...'
       });
 
+      // Use İyzico's checkout form auth detail API
+      const queryRequest = {
+        locale: 'tr',
+        conversationId: paymentRequest.conversationId,
+        token: token
+      };
+
       return new Promise((resolve) => {
-        this.iyzipay.checkoutFormAuth.retrieve(paymentRequest, (err, result) => {
+        this.iyzipay.checkoutForm.retrieve(queryRequest, (err, result) => {
           if (err) {
-            logger.error('❌ [IYZICO] Checkout form completion failed', err);
+            logger.error('❌ [IYZICO] Checkout form query failed', err);
             resolve({
               success: false,
-              error: err.errorMessage || 'Ödeme işlemi başarısız'
+              error: err.errorMessage || 'Ödeme sorgulanamadı'
             });
-          } else if (result.status === 'success') {
-            logger.info('✅ [IYZICO] Checkout form completed successfully', {
+          } else if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
+            logger.info('✅ [IYZICO] Payment completed successfully', {
               paymentId: result.paymentId,
-              status: result.status
+              paymentStatus: result.paymentStatus
             });
 
             resolve({
               success: true,
               payment: {
                 id: result.paymentId,
-                status: result.status,
+                status: result.paymentStatus,
                 conversationId: result.conversationId,
                 amount: result.paidPrice,
                 currency: result.currency
@@ -338,8 +345,9 @@ class IyzicoService {
               credits: 10000
             });
           } else {
-            logger.warn('⚠️ [IYZICO] Checkout form completion unsuccessful', { 
+            logger.warn('⚠️ [IYZICO] Payment not successful', { 
               status: result.status,
+              paymentStatus: result.paymentStatus,
               errorMessage: result.errorMessage 
             });
             resolve({
