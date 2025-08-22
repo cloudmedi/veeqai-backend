@@ -168,7 +168,7 @@ router.get('/plans-test', (req, res) => {
  */
 router.post('/initiate', 
   paymentRateLimit,
-  // authMiddleware, // Temporarily disabled for testing
+  authMiddleware,
   paymentController.initiatePayment
 );
 

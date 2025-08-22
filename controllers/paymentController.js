@@ -15,7 +15,7 @@ const paymentController = {
   async initiatePayment(req, res) {
     try {
       const { planId, billingInfo = {} } = req.body;
-      const userId = req.user?.id || 'test-user-id'; // Temporary for testing
+      const userId = req.user.id;
 
       // Validation
       if (!planId) {
