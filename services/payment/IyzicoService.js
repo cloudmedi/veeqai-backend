@@ -209,8 +209,12 @@ class IyzicoService {
         logger.info('✅ [IYZICO] Payment initialized successfully', { 
           conversationId, 
           paymentPageUrl: result.paymentPageUrl,
-          token: result.token 
+          token: result.token,
+          hasCheckoutFormContent: !!result.checkoutFormContent
         });
+
+        console.log('🔍 [IYZICO] Full result keys:', Object.keys(result));
+        console.log('🔍 [IYZICO] checkoutFormContent exists:', !!result.checkoutFormContent);
 
         const responseData = {
           success: true,
