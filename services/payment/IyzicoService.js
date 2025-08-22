@@ -203,16 +203,20 @@ class IyzicoService {
         
         logger.info('✅ [IYZICO] Payment initialized successfully', { 
           conversationId, 
-          paymentPageUrl: result.paymentPageUrl 
+          paymentPageUrl: result.paymentPageUrl,
+          token: result.token 
         });
 
-        return {
+        const responseData = {
           success: true,
           conversationId,
           paymentId: result.paymentId,
           paymentPageUrl: result.paymentPageUrl,
           token: result.token
         };
+
+        logger.info('💰 [IYZICO] Returning response data:', responseData);
+        return responseData;
       } else {
         payment.status = 'failed';
         payment.errorCode = result.errorCode;

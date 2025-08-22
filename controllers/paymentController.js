@@ -43,14 +43,22 @@ const paymentController = {
         ip: clientIp 
       });
 
+      logger.info('📋 [PAYMENT] Request body:', req.body);
+
       const result = await IyzicoService.initiatePayment(userId, planId, billingInfo);
 
-      return successResponse(res, {
+      logger.info('💰 [PAYMENT] IyzicoService result:', result);
+
+      const responseData = {
         conversationId: result.conversationId,
         paymentId: result.paymentId,
         paymentPageUrl: result.paymentPageUrl,
         token: result.token
-      }, 'Payment initialized successfully');
+      };
+
+      logger.info('📤 [PAYMENT] Sending response to frontend:', responseData);
+
+      return successResponse(res, responseData, 'Payment initialized successfully');
 
     } catch (error) {
       logger.error('❌ [PAYMENT] Initiation error', { 
