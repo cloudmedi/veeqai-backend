@@ -287,67 +287,114 @@ class IyzicoService {
   }
 
   /**
-   * Process direct card payment with checkout form completion
+   * Process direct card payment using Iyzico Payment API
    */
   async processCardPayment(token, card) {
     try {
-      // Complete the checkout form with card details
+      // Get plan details from database for payment
+      const { Plan } = this.getModels();
+      const plan = await Plan.findOne({ name: 'starter' }); // Get actual plan
+      
+      if (!plan) {
+        throw new Error('Plan not found');
+      }
+
+      const conversationId = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create direct payment request
       const paymentRequest = {
         locale: 'tr',
-        conversationId: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        token: token,
-        card: {
+        conversationId: conversationId,
+        price: plan.pricing.monthly.amount.toString(),
+        paidPrice: plan.pricing.monthly.amount.toString(),
+        currency: plan.pricing.monthly.currency,
+        installment: '1',
+        basketId: conversationId,
+        paymentChannel: 'WEB',
+        paymentGroup: 'PRODUCT',
+        callbackUrl: `${process.env.API_BASE_URL || 'https://api.veeq.ai'}/api/payment/callback`,
+        paymentCard: {
           cardHolderName: card.cardHolderName,
           cardNumber: card.cardNumber,
           expireMonth: card.expireMonth,
           expireYear: card.expireYear,
           cvc: card.cvc,
           registerCard: '0'
-        }
+        },
+        buyer: {
+          id: 'BY789',
+          name: 'CAT',
+          surname: 'Surname',
+          gsmNumber: '+905350000000',
+          email: 'cat@cat.com',
+          identityNumber: '74300864791',
+          lastLoginDate: '2015-10-05 12:43:35',
+          registrationDate: '2013-04-21 15:12:09',
+          registrationAddress: 'Address',
+          ip: '85.34.78.112',
+          city: 'Istanbul',
+          country: 'Turkey',
+          zipCode: '34732'
+        },
+        shippingAddress: {
+          contactName: 'CAT Surname',
+          city: 'Istanbul',
+          country: 'Turkey',
+          address: 'Address',
+          zipCode: '34732'
+        },
+        billingAddress: {
+          contactName: 'CAT Surname',
+          city: 'Istanbul',
+          country: 'Turkey',
+          address: 'Address',
+          zipCode: '34732'
+        },
+        basketItems: [
+          {
+            id: plan._id.toString(),
+            name: plan.displayName,
+            category1: 'Subscription',
+            itemType: 'VIRTUAL',
+            price: plan.pricing.monthly.amount.toString()
+          }
+        ]
       };
 
-      logger.info('💳 [IYZICO] Completing checkout form with card', {
-        conversationId: paymentRequest.conversationId,
-        token: token.substring(0, 20) + '...'
+      logger.info('💳 [IYZICO] Creating direct payment', {
+        conversationId: conversationId,
+        amount: paymentRequest.paidPrice
       });
 
-      // Use İyzico's checkout form auth detail API
-      const queryRequest = {
-        locale: 'tr',
-        conversationId: paymentRequest.conversationId,
-        token: token
-      };
-
       return new Promise((resolve) => {
-        this.iyzipay.checkoutForm.retrieve(queryRequest, (err, result) => {
+        this.iyzipay.payment.create(paymentRequest, (err, result) => {
           if (err) {
-            logger.error('❌ [IYZICO] Checkout form query failed', err);
+            logger.error('❌ [IYZICO] Direct payment failed', err);
             resolve({
               success: false,
-              error: err.errorMessage || 'Ödeme sorgulanamadı'
+              error: err.errorMessage || 'Ödeme işlemi başarısız'
             });
-          } else if (result.status === 'success' && result.paymentStatus === 'SUCCESS') {
-            logger.info('✅ [IYZICO] Payment completed successfully', {
+          } else if (result.status === 'success') {
+            logger.info('✅ [IYZICO] Direct payment successful', {
               paymentId: result.paymentId,
-              paymentStatus: result.paymentStatus
+              status: result.status
             });
 
             resolve({
               success: true,
               payment: {
                 id: result.paymentId,
-                status: result.paymentStatus,
+                status: result.status,
                 conversationId: result.conversationId,
                 amount: result.paidPrice,
                 currency: result.currency
               },
-              planName: 'Starter',
-              credits: 10000
+              planName: plan.name,
+              credits: plan.credits.monthly
             });
           } else {
             logger.warn('⚠️ [IYZICO] Payment not successful', { 
               status: result.status,
-              paymentStatus: result.paymentStatus,
               errorMessage: result.errorMessage 
             });
             resolve({
