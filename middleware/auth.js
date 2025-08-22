@@ -47,12 +47,12 @@ const authenticateToken = async (req, res, next) => {
         return res.status(403).json({ error: 'Invalid token' });
       }
       
-      const userId = decoded.id || decoded.userId;
+      const userId = decoded.sub || decoded.id || decoded.userId;
       console.log('✅ JWT decoded, user ID:', userId);
       
       const user = await User.findById(userId).select('-password');
       if (!user) {
-        console.log('❌ User not found:', decoded.id);
+        console.log('❌ User not found:', userId);
         return res.status(404).json({ error: 'User not found' });
       }
       
