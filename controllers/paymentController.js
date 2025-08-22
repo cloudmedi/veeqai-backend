@@ -357,10 +357,8 @@ const paymentController = {
 
       let plans = [];
       try {
-        plans = await Plan.find({ 
-          status: 'active',
-          isPublic: true
-        }).select('name displayName description pricing features credits display').lean();
+        // Get ALL plans from database - super-admin manages which ones are active
+        plans = await Plan.find({}).select('_id name displayName description pricing features credits display status isPublic').lean();
         
         logger.info('📋 [PAYMENT] Database query successful, found plans:', plans.length);
       } catch (dbError) {
