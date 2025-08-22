@@ -391,7 +391,7 @@ const paymentController = {
             displayName: 'Free Plan',
             description: 'Get started with basic features',
             pricing: {
-              monthly: { amount: 0, currency: 'USD' },
+              monthly: { amount: 0, currency: process.env.DEFAULT_CURRENCY || 'TRY' },
               yearly: null
             },
             features: { textToSpeech: true },
@@ -404,8 +404,8 @@ const paymentController = {
             displayName: 'Starter Plan',
             description: 'Perfect for individuals',
             pricing: {
-              monthly: { amount: 29.99, currency: 'USD' },
-              yearly: { amount: 299.99, currency: 'USD', discount: 17 }
+              monthly: { amount: 29.99, currency: process.env.DEFAULT_CURRENCY || 'TRY' },
+              yearly: { amount: 299.99, currency: process.env.DEFAULT_CURRENCY || 'TRY', discount: 17 }
             },
             features: { textToSpeech: true, musicGeneration: true },
             credits: { monthly: 10000 },
@@ -432,7 +432,7 @@ const paymentController = {
             displayName: 'Free Plan',
             description: 'Get started with basic features',
             pricing: {
-              monthly: { amount: 0, currency: 'USD' },
+              monthly: { amount: 0, currency: process.env.DEFAULT_CURRENCY || 'TRY' },
               yearly: null
             },
             features: { textToSpeech: true },
@@ -445,8 +445,8 @@ const paymentController = {
             displayName: 'Starter Plan',
             description: 'Perfect for individuals',
             pricing: {
-              monthly: { amount: 29.99, currency: 'USD' },
-              yearly: { amount: 299.99, currency: 'USD', discount: 17 }
+              monthly: { amount: 29.99, currency: process.env.DEFAULT_CURRENCY || 'TRY' },
+              yearly: { amount: 299.99, currency: process.env.DEFAULT_CURRENCY || 'TRY', discount: 17 }
             },
             features: { textToSpeech: true, musicGeneration: true },
             credits: { monthly: 10000 },
@@ -466,7 +466,7 @@ const paymentController = {
             displayName: 'Free Plan',
             description: 'Get started with basic features',
             pricing: {
-              monthly: { amount: 0, currency: 'USD' },
+              monthly: { amount: 0, currency: process.env.DEFAULT_CURRENCY || 'TRY' },
               yearly: null
             },
             features: { textToSpeech: true },
@@ -479,8 +479,8 @@ const paymentController = {
             displayName: 'Starter Plan',
             description: 'Perfect for individuals',
             pricing: {
-              monthly: { amount: 29.99, currency: 'USD' },
-              yearly: { amount: 299.99, currency: 'USD', discount: 17 }
+              monthly: { amount: 29.99, currency: process.env.DEFAULT_CURRENCY || 'TRY' },
+              yearly: { amount: 299.99, currency: process.env.DEFAULT_CURRENCY || 'TRY', discount: 17 }
             },
             features: { textToSpeech: true, musicGeneration: true },
             credits: { monthly: 10000 },
@@ -502,11 +502,11 @@ const paymentController = {
             pricing: {
               monthly: {
                 amount: plan.pricing?.monthly?.amount || 0,
-                currency: plan.pricing?.monthly?.currency || process.env.DEFAULT_CURRENCY || 'USD'
+                currency: plan.pricing?.monthly?.currency || process.env.DEFAULT_CURRENCY || 'TRY'
               },
               yearly: plan.pricing?.yearly ? {
                 amount: plan.pricing.yearly.amount,
-                currency: plan.pricing.yearly.currency || process.env.DEFAULT_CURRENCY || 'USD',
+                currency: plan.pricing.yearly.currency || process.env.DEFAULT_CURRENCY || 'TRY',
                 discount: plan.pricing.yearly.discount
               } : null
             },
@@ -623,7 +623,7 @@ const paymentController = {
       return successResponse(res, {
         currencies,
         multiCurrencyEnabled,
-        defaultCurrency: process.env.DEFAULT_CURRENCY || 'USD'
+        defaultCurrency: process.env.DEFAULT_CURRENCY || 'TRY'
       });
 
     } catch (error) {
