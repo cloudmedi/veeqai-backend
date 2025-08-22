@@ -215,6 +215,7 @@ class IyzicoService {
 
         console.log('🔍 [IYZICO] Full result keys:', Object.keys(result));
         console.log('🔍 [IYZICO] checkoutFormContent exists:', !!result.checkoutFormContent);
+        console.log('🔍 [IYZICO] checkoutFormContent length:', result.checkoutFormContent?.length || 0);
 
         const responseData = {
           success: true,

@@ -58,6 +58,8 @@ const paymentController = {
       };
 
       console.log('📤 [PAYMENT] Sending response to frontend:', JSON.stringify(responseData, null, 2));
+      console.log('🔍 [PAYMENT] checkoutFormContent in response:', !!responseData.checkoutFormContent);
+      console.log('🔍 [PAYMENT] checkoutFormContent length:', responseData.checkoutFormContent?.length || 0);
       logger.info('📤 [PAYMENT] Sending response to frontend:', JSON.stringify(responseData, null, 2));
 
       return successResponse(res, responseData, 'Payment initialized successfully');
