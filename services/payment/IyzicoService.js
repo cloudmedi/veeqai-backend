@@ -83,8 +83,8 @@ class IyzicoService {
         throw new Error('Plan not found or inactive');
       }
 
-      // Use default currency (TRY for Turkish market)
-      const planCurrency = plan.pricing.monthly.currency || process.env.DEFAULT_CURRENCY || 'TRY';
+      // Use default currency (USD for global sales)
+      const planCurrency = plan.pricing.monthly.currency || process.env.DEFAULT_CURRENCY || 'USD';
       if (this.multiCurrencyEnabled && !this.isCurrencySupported(planCurrency)) {
         throw new Error(`Currency ${planCurrency} is not supported. Supported currencies: ${this.supportedCurrencies.join(', ')}`);
       }
