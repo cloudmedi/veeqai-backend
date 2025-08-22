@@ -54,7 +54,8 @@ const paymentController = {
         conversationId: result.conversationId,
         paymentId: result.paymentId,
         paymentPageUrl: result.paymentPageUrl,
-        token: result.token
+        token: result.token,
+        checkoutFormContent: result.checkoutFormContent
       };
 
       console.log('📤 [PAYMENT] Sending response to frontend:', JSON.stringify(responseData, null, 2));
