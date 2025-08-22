@@ -61,6 +61,9 @@ const webhookRateLimit = (req, res, next) => next();
 // Get plans from database using controller
 router.get('/plans', paymentController.getPlans);
 
+// Get supported currencies
+router.get('/currencies', paymentController.getSupportedCurrencies);
+
 // Simple test endpoint to verify routes are working
 router.get('/test', (req, res) => {
   res.json({ 

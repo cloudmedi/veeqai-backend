@@ -25,11 +25,16 @@ class IyzicoService {
     });
     
     this.isConfigured = !!(process.env.IYZICO_API_KEY && process.env.IYZICO_SECRET_KEY);
+    this.multiCurrencyEnabled = process.env.IYZICO_MULTI_CURRENCY === 'true';
+    this.supportedCurrencies = (process.env.SUPPORTED_CURRENCIES || 'TRY').split(',').map(c => c.trim());
     
     if (!this.isConfigured) {
       logger.warn('⚠️ [IYZICO] API credentials not configured');
     } else {
       logger.info('✅ [IYZICO] Service initialized successfully');
+      if (this.multiCurrencyEnabled) {
+        logger.info('💰 [IYZICO] Multi-currency enabled:', this.supportedCurrencies.join(', '));
+      }
     }
   }
 
@@ -38,6 +43,20 @@ class IyzicoService {
    */
   isReady() {
     return this.isConfigured;
+  }
+
+  /**
+   * Validate currency support
+   */
+  isCurrencySupported(currency) {
+    return this.supportedCurrencies.includes(currency.toUpperCase());
+  }
+
+  /**
+   * Get supported currencies
+   */
+  getSupportedCurrencies() {
+    return this.supportedCurrencies;
   }
 
   /**
@@ -64,6 +83,17 @@ class IyzicoService {
         throw new Error('Plan not found or inactive');
       }
 
+      // Use default currency (USD for global sales)
+      const planCurrency = plan.pricing.monthly.currency || process.env.DEFAULT_CURRENCY || 'USD';
+      if (this.multiCurrencyEnabled && !this.isCurrencySupported(planCurrency)) {
+        throw new Error(`Currency ${planCurrency} is not supported. Supported currencies: ${this.supportedCurrencies.join(', ')}`);
+      }
+
+      // Ensure currency is always uppercase for Iyzico API
+      const currency = planCurrency.toUpperCase();
+
+      logger.info('💰 [IYZICO] Payment currency:', currency);
+
       // Generate unique conversation ID
       const conversationId = `conv_${uuidv4()}`;
       
@@ -73,7 +103,7 @@ class IyzicoService {
         planId,
         conversationId,
         amount: plan.pricing.monthly.amount,
-        currency: plan.pricing.monthly.currency || 'TRY',
+        currency,
         billingInfo: {
           contactName: billingInfo.contactName || user.name,
           city: billingInfo.city || 'Istanbul',

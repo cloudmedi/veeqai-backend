@@ -330,7 +330,7 @@ const paymentController = {
             displayName: 'Free Plan',
             description: 'Get started with basic features',
             pricing: {
-              monthly: { amount: 0, currency: 'TRY' },
+              monthly: { amount: 0, currency: 'USD' },
               yearly: null
             },
             features: { textToSpeech: true },
@@ -343,8 +343,8 @@ const paymentController = {
             displayName: 'Starter Plan',
             description: 'Perfect for individuals',
             pricing: {
-              monthly: { amount: 29.99, currency: 'TRY' },
-              yearly: { amount: 299.99, currency: 'TRY', discount: 17 }
+              monthly: { amount: 29.99, currency: 'USD' },
+              yearly: { amount: 299.99, currency: 'USD', discount: 17 }
             },
             features: { textToSpeech: true, musicGeneration: true },
             credits: { monthly: 10000 },
@@ -371,7 +371,7 @@ const paymentController = {
             displayName: 'Free Plan',
             description: 'Get started with basic features',
             pricing: {
-              monthly: { amount: 0, currency: 'TRY' },
+              monthly: { amount: 0, currency: 'USD' },
               yearly: null
             },
             features: { textToSpeech: true },
@@ -384,8 +384,8 @@ const paymentController = {
             displayName: 'Starter Plan',
             description: 'Perfect for individuals',
             pricing: {
-              monthly: { amount: 29.99, currency: 'TRY' },
-              yearly: { amount: 299.99, currency: 'TRY', discount: 17 }
+              monthly: { amount: 29.99, currency: 'USD' },
+              yearly: { amount: 299.99, currency: 'USD', discount: 17 }
             },
             features: { textToSpeech: true, musicGeneration: true },
             credits: { monthly: 10000 },
@@ -405,7 +405,7 @@ const paymentController = {
             displayName: 'Free Plan',
             description: 'Get started with basic features',
             pricing: {
-              monthly: { amount: 0, currency: 'TRY' },
+              monthly: { amount: 0, currency: 'USD' },
               yearly: null
             },
             features: { textToSpeech: true },
@@ -418,8 +418,8 @@ const paymentController = {
             displayName: 'Starter Plan',
             description: 'Perfect for individuals',
             pricing: {
-              monthly: { amount: 29.99, currency: 'TRY' },
-              yearly: { amount: 299.99, currency: 'TRY', discount: 17 }
+              monthly: { amount: 29.99, currency: 'USD' },
+              yearly: { amount: 299.99, currency: 'USD', discount: 17 }
             },
             features: { textToSpeech: true, musicGeneration: true },
             credits: { monthly: 10000 },
@@ -441,11 +441,11 @@ const paymentController = {
             pricing: {
               monthly: {
                 amount: plan.pricing?.monthly?.amount || 0,
-                currency: plan.pricing?.monthly?.currency || 'TRY'
+                currency: plan.pricing?.monthly?.currency || process.env.DEFAULT_CURRENCY || 'USD'
               },
               yearly: plan.pricing?.yearly ? {
                 amount: plan.pricing.yearly.amount,
-                currency: plan.pricing.yearly.currency,
+                currency: plan.pricing.yearly.currency || process.env.DEFAULT_CURRENCY || 'USD',
                 discount: plan.pricing.yearly.discount
               } : null
             },
@@ -546,6 +546,27 @@ const paymentController = {
         error: error.message, 
         paymentId: req.params.paymentId 
       });
+      return errorResponse(res, error.message, 500);
+    }
+  },
+
+  /**
+   * Get supported currencies
+   * GET /api/payment/currencies
+   */
+  async getSupportedCurrencies(req, res) {
+    try {
+      const currencies = IyzicoService.getSupportedCurrencies();
+      const multiCurrencyEnabled = process.env.IYZICO_MULTI_CURRENCY === 'true';
+
+      return successResponse(res, {
+        currencies,
+        multiCurrencyEnabled,
+        defaultCurrency: process.env.DEFAULT_CURRENCY || 'USD'
+      });
+
+    } catch (error) {
+      logger.error('❌ [PAYMENT] Currencies fetch error', { error: error.message });
       return errorResponse(res, error.message, 500);
     }
   },
