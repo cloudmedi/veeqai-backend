@@ -93,8 +93,9 @@ class IyzicoService {
       const currency = planCurrency.toUpperCase();
 
       logger.info('💰 [IYZICO] Payment currency:', currency);
-      logger.info('💳 [IYZICO] Plan pricing:', plan.pricing);
-      logger.info('💳 [IYZICO] Payment amount:', plan.pricing.monthly.amount);
+      logger.info('💳 [IYZICO] Plan found:', { id: plan._id, name: plan.name });
+      logger.info('💳 [IYZICO] Plan pricing:', JSON.stringify(plan.pricing, null, 2));
+      logger.info('💳 [IYZICO] Payment amount:', plan.pricing?.monthly?.amount);
 
       // Generate unique conversation ID
       const conversationId = `conv_${uuidv4()}`;
@@ -215,7 +216,7 @@ class IyzicoService {
           token: result.token
         };
 
-        logger.info('💰 [IYZICO] Returning response data:', responseData);
+        logger.info('💰 [IYZICO] Returning response data:', JSON.stringify(responseData, null, 2));
         return responseData;
       } else {
         payment.status = 'failed';
