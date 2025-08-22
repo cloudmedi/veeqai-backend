@@ -74,53 +74,7 @@ const paymentController = {
     }
   },
 
-  /**
-   * Process payment with card details
-   * POST /api/payment/process
-   */
-  async processPayment(req, res) {
-    try {
-      const { token, card } = req.body;
-      const userId = req.user?.id || req.user?._id;
-
-      if (!token || !card) {
-        return errorResponse(res, 'Token and card details are required', 400);
-      }
-
-      logger.info('💳 [PAYMENT] Processing card payment', {
-        userId,
-        token: token.substring(0, 20) + '...'
-      });
-
-      // Process payment with Iyzico
-      const result = await IyzicoService.processCardPayment(token, card);
-
-      if (result.success) {
-        // Update user subscription
-        const user = await User.findByIdAndUpdate(
-          userId,
-          {
-            subscription: result.planName,
-            subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            credits: result.credits
-          },
-          { new: true }
-        );
-
-        return successResponse(res, {
-          status: 'success',
-          subscription: user.subscription,
-          credits: user.credits
-        }, 'Payment processed successfully');
-      } else {
-        return errorResponse(res, result.error || 'Payment failed', 400);
-      }
-
-    } catch (error) {
-      logger.error('❌ [PAYMENT] Process payment error', { error: error.message });
-      return errorResponse(res, error.message, 500);
-    }
-  },
+  // processPayment method removed - now using iyzico popup only
 
   /**
    * Handle payment callback from Iyzico
