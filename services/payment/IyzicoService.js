@@ -291,15 +291,23 @@ class IyzicoService {
    */
   async processCardPayment(token, card) {
     try {
-      // Get plan details from database for payment
-      const { Plan } = this.getModels();
-      const plan = await Plan.findOne({ name: 'starter' }); // Get actual plan
+      // Get payment details from token to find the correct plan
+      const { Payment, Plan } = this.getModels();
+      const payment = await Payment.findOne({ token: token }).populate('planId');
       
-      if (!plan) {
-        throw new Error('Plan not found');
+      if (!payment || !payment.planId) {
+        throw new Error('Payment or plan not found');
       }
 
-      const conversationId = `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const plan = payment.planId;
+      
+      // Use same currency validation as initiatePayment
+      const planCurrency = plan.pricing.monthly.currency || process.env.DEFAULT_CURRENCY || 'USD';
+      if (this.multiCurrencyEnabled && !this.isCurrencySupported(planCurrency)) {
+        throw new Error(`Currency ${planCurrency} is not supported. Supported currencies: ${this.supportedCurrencies.join(', ')}`);
+      }
+
+      const conversationId = payment.conversationId;
       
       // Create direct payment request
       const paymentRequest = {
@@ -307,7 +315,7 @@ class IyzicoService {
         conversationId: conversationId,
         price: plan.pricing.monthly.amount.toString(),
         paidPrice: plan.pricing.monthly.amount.toString(),
-        currency: plan.pricing.monthly.currency,
+        currency: planCurrency,
         installment: '1',
         basketId: conversationId,
         paymentChannel: 'WEB',
@@ -322,33 +330,33 @@ class IyzicoService {
           registerCard: '0'
         },
         buyer: {
-          id: 'BY789',
-          name: 'CAT',
-          surname: 'Surname',
+          id: payment.userId.toString(),
+          name: payment.billingInfo.contactName.split(' ')[0] || 'User',
+          surname: payment.billingInfo.contactName.split(' ')[1] || 'Surname',
           gsmNumber: '+905350000000',
-          email: 'cat@cat.com',
-          identityNumber: '74300864791',
-          lastLoginDate: '2015-10-05 12:43:35',
-          registrationDate: '2013-04-21 15:12:09',
-          registrationAddress: 'Address',
-          ip: '85.34.78.112',
-          city: 'Istanbul',
-          country: 'Turkey',
-          zipCode: '34732'
+          email: 'user@example.com',
+          identityNumber: '11111111111',
+          lastLoginDate: new Date().toISOString().split('T')[0] + ' 00:00:00',
+          registrationDate: new Date().toISOString().split('T')[0] + ' 00:00:00',
+          registrationAddress: payment.billingInfo.address,
+          ip: payment.billingInfo.ip,
+          city: payment.billingInfo.city,
+          country: payment.billingInfo.country,
+          zipCode: payment.billingInfo.zipCode
         },
         shippingAddress: {
-          contactName: 'CAT Surname',
-          city: 'Istanbul',
-          country: 'Turkey',
-          address: 'Address',
-          zipCode: '34732'
+          contactName: payment.billingInfo.contactName,
+          city: payment.billingInfo.city,
+          country: payment.billingInfo.country,
+          address: payment.billingInfo.address,
+          zipCode: payment.billingInfo.zipCode
         },
         billingAddress: {
-          contactName: 'CAT Surname',
-          city: 'Istanbul',
-          country: 'Turkey',
-          address: 'Address',
-          zipCode: '34732'
+          contactName: payment.billingInfo.contactName,
+          city: payment.billingInfo.city,
+          country: payment.billingInfo.country,
+          address: payment.billingInfo.address,
+          zipCode: payment.billingInfo.zipCode
         },
         basketItems: [
           {
