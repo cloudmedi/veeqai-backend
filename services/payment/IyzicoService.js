@@ -83,8 +83,8 @@ class IyzicoService {
         throw new Error('Plan not found or inactive');
       }
 
-      // Use default currency (USD for global sales)
-      const planCurrency = plan.pricing.monthly.currency || process.env.DEFAULT_CURRENCY || 'USD';
+      // Use TRY for Turkish market to avoid domestic card restrictions
+      const planCurrency = 'TRY'; // Force TRY for all payments
       if (this.multiCurrencyEnabled && !this.isCurrencySupported(planCurrency)) {
         throw new Error(`Currency ${planCurrency} is not supported. Supported currencies: ${this.supportedCurrencies.join(', ')}`);
       }
@@ -109,8 +109,8 @@ class IyzicoService {
         userId,
         planId,
         conversationId,
-        amount: plan.pricing.monthly.amount,
-        currency,
+        amount: plan.pricing.monthly.amount * 30, // Convert to TRY
+        currency: 'TRY',
         billingInfo: {
           contactName: billingInfo.contactName || user.name,
           city: billingInfo.city || 'Istanbul',
@@ -131,9 +131,9 @@ class IyzicoService {
       const request = {
         locale: 'tr',
         conversationId,
-        price: payment.amount.toString(),
-        paidPrice: payment.amount.toString(),
-        currency: payment.currency,
+        price: (plan.pricing.monthly.amount * 30).toString(), // Convert USD to TRY (approx)
+        paidPrice: (plan.pricing.monthly.amount * 30).toString(),
+        currency: 'TRY',
         basketId: `basket_${payment._id}`,
         paymentGroup: 'PRODUCT',
         callbackUrl: payment.callbackUrl,
