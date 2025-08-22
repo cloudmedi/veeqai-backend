@@ -186,9 +186,9 @@ class IyzicoService {
         amount: payment.amount 
       });
 
-      // Create payment request (for popup/iframe integration)
+      // Create checkout form initialize request (works for both redirect and popup)
       const result = await new Promise((resolve, reject) => {
-        this.iyzipay.payment.create(request, (err, result) => {
+        this.iyzipay.checkoutFormInitialize.create(request, (err, result) => {
           if (err) {
             logger.error('❌ [IYZICO] Payment initialization failed', { error: err, conversationId });
             reject(err);
@@ -216,14 +216,6 @@ class IyzicoService {
           success: true,
           conversationId,
           paymentId: result.paymentId,
-          // For popup integration, we return different data
-          paymentData: {
-            htmlContent: result.htmlContent || '',
-            threeDSHtmlContent: result.threeDSHtmlContent || '',
-            paymentId: result.paymentId,
-            conversationId
-          },
-          // Keep paymentPageUrl for backward compatibility
           paymentPageUrl: result.paymentPageUrl,
           token: result.token
         };
