@@ -204,6 +204,51 @@ router.post('/callback', paymentController.handleCallback);
 
 /**
  * @swagger
+ * /api/payment/process:
+ *   post:
+ *     summary: Process payment with card details
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - card
+ *             properties:
+ *               token:
+ *                 type: string
+ *               card:
+ *                 type: object
+ *                 properties:
+ *                   cardHolderName:
+ *                     type: string
+ *                   cardNumber:
+ *                     type: string
+ *                   expireMonth:
+ *                     type: string
+ *                   expireYear:
+ *                     type: string
+ *                   cvc:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: Payment processed successfully
+ *       400:
+ *         description: Payment processing failed
+ */
+router.post('/process',
+  paymentRateLimit,
+  authMiddleware,
+  paymentController.processPayment
+);
+
+/**
+ * @swagger
  * /api/payment/webhook:
  *   post:
  *     summary: Handle webhook from Iyzico

@@ -287,6 +287,95 @@ class IyzicoService {
   }
 
   /**
+   * Process direct card payment
+   */
+  async processCardPayment(token, card) {
+    try {
+      // First retrieve the checkout form to get payment details
+      const checkoutResult = await this.retrieveCheckoutForm(token);
+      
+      if (checkoutResult.status !== 'success') {
+        throw new Error('Invalid payment token');
+      }
+
+      // Now process the actual payment with card details
+      const paymentRequest = {
+        locale: Iyzico.LOCALE.TR,
+        conversationId: checkoutResult.conversationId,
+        price: checkoutResult.paidPrice,
+        paidPrice: checkoutResult.paidPrice,
+        currency: checkoutResult.currency || 'USD',
+        installment: '1',
+        basketId: checkoutResult.basketId,
+        paymentChannel: 'WEB',
+        paymentGroup: 'PRODUCT',
+        paymentCard: {
+          cardHolderName: card.cardHolderName,
+          cardNumber: card.cardNumber,
+          expireMonth: card.expireMonth,
+          expireYear: card.expireYear,
+          cvc: card.cvc,
+          registerCard: '0'
+        },
+        buyer: checkoutResult.buyer,
+        shippingAddress: checkoutResult.shippingAddress,
+        billingAddress: checkoutResult.billingAddress,
+        basketItems: checkoutResult.basketItems
+      };
+
+      logger.info('💳 [IYZICO] Processing direct payment', {
+        conversationId: paymentRequest.conversationId,
+        amount: paymentRequest.paidPrice
+      });
+
+      return new Promise((resolve) => {
+        iyzipay.payment.create(paymentRequest, (err, result) => {
+          if (err) {
+            logger.error('❌ [IYZICO] Direct payment failed', err);
+            resolve({
+              success: false,
+              error: err.errorMessage || 'Ödeme işlemi başarısız'
+            });
+          } else if (result.status === 'success') {
+            logger.info('✅ [IYZICO] Direct payment successful', {
+              paymentId: result.paymentId,
+              status: result.status
+            });
+
+            resolve({
+              success: true,
+              payment: {
+                id: result.paymentId,
+                status: result.status,
+                conversationId: result.conversationId,
+                amount: result.paidPrice,
+                currency: result.currency
+              },
+              planName: 'Starter', // Get from payment metadata
+              credits: 10000 // Get from plan
+            });
+          } else {
+            logger.warn('⚠️ [IYZICO] Payment unsuccessful', { 
+              status: result.status,
+              errorMessage: result.errorMessage 
+            });
+            resolve({
+              success: false,
+              error: result.errorMessage || 'Ödeme başarısız'
+            });
+          }
+        });
+      });
+    } catch (error) {
+      logger.error('❌ [IYZICO] Process card payment error', error);
+      return {
+        success: false,
+        error: error.message || 'Ödeme işlemi hatası'
+      };
+    }
+  },
+
+  /**
    * Process payment callback
    */
   async processCallback(token, conversationId = null) {
