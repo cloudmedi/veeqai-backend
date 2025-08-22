@@ -287,57 +287,40 @@ class IyzicoService {
   }
 
   /**
-   * Process direct card payment
+   * Process direct card payment with checkout form completion
    */
   async processCardPayment(token, card) {
     try {
-      // First retrieve the checkout form to get payment details
-      const checkoutResult = await this.retrieveCheckoutForm(token);
-      
-      if (checkoutResult.status !== 'success') {
-        throw new Error('Invalid payment token');
-      }
-
-      // Now process the actual payment with card details
+      // Complete the checkout form with card details
       const paymentRequest = {
         locale: Iyzico.LOCALE.TR,
-        conversationId: checkoutResult.conversationId,
-        price: checkoutResult.paidPrice,
-        paidPrice: checkoutResult.paidPrice,
-        currency: checkoutResult.currency || 'USD',
-        installment: '1',
-        basketId: checkoutResult.basketId,
-        paymentChannel: 'WEB',
-        paymentGroup: 'PRODUCT',
-        paymentCard: {
+        conversationId: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        token: token,
+        card: {
           cardHolderName: card.cardHolderName,
           cardNumber: card.cardNumber,
           expireMonth: card.expireMonth,
           expireYear: card.expireYear,
           cvc: card.cvc,
           registerCard: '0'
-        },
-        buyer: checkoutResult.buyer,
-        shippingAddress: checkoutResult.shippingAddress,
-        billingAddress: checkoutResult.billingAddress,
-        basketItems: checkoutResult.basketItems
+        }
       };
 
-      logger.info('💳 [IYZICO] Processing direct payment', {
+      logger.info('💳 [IYZICO] Completing checkout form with card', {
         conversationId: paymentRequest.conversationId,
-        amount: paymentRequest.paidPrice
+        token: token.substring(0, 20) + '...'
       });
 
       return new Promise((resolve) => {
-        iyzipay.payment.create(paymentRequest, (err, result) => {
+        this.iyzipay.checkoutFormAuth.retrieve(paymentRequest, (err, result) => {
           if (err) {
-            logger.error('❌ [IYZICO] Direct payment failed', err);
+            logger.error('❌ [IYZICO] Checkout form completion failed', err);
             resolve({
               success: false,
               error: err.errorMessage || 'Ödeme işlemi başarısız'
             });
           } else if (result.status === 'success') {
-            logger.info('✅ [IYZICO] Direct payment successful', {
+            logger.info('✅ [IYZICO] Checkout form completed successfully', {
               paymentId: result.paymentId,
               status: result.status
             });
@@ -351,11 +334,11 @@ class IyzicoService {
                 amount: result.paidPrice,
                 currency: result.currency
               },
-              planName: 'Starter', // Get from payment metadata
-              credits: 10000 // Get from plan
+              planName: 'Starter',
+              credits: 10000
             });
           } else {
-            logger.warn('⚠️ [IYZICO] Payment unsuccessful', { 
+            logger.warn('⚠️ [IYZICO] Checkout form completion unsuccessful', { 
               status: result.status,
               errorMessage: result.errorMessage 
             });
