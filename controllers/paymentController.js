@@ -358,7 +358,7 @@ const paymentController = {
       let plans = [];
       try {
         // Get ALL plans from database - super-admin manages which ones are active
-        plans = await Plan.find({}).select('_id name displayName description pricing features credits display status isPublic').lean();
+        plans = await Plan.find({}).select('_id name displayName description pricing features credits display status isPublic').lean().exec();
         
         logger.info('📋 [PAYMENT] Database query successful, found plans:', plans.length);
       } catch (dbError) {
@@ -433,7 +433,8 @@ const paymentController = {
       const formattedPlans = plans.map(plan => {
         try {
           return {
-            id: plan._id,
+            _id: plan._id,
+            id: plan._id, // Add id field for frontend compatibility
             name: plan.name,
             displayName: plan.displayName,
             description: plan.description,
@@ -450,6 +451,9 @@ const paymentController = {
             },
             features: plan.features || {},
             credits: plan.credits || { monthly: 0 },
+            display: plan.display || {},
+            status: plan.status,
+            isPublic: plan.isPublic,
             isPopular: plan.display?.popular || false
           };
         } catch (formatError) {
