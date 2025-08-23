@@ -139,38 +139,7 @@ router.post('/login', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, turnstileToken } = req.body;
-
-    // Verify Cloudflare Turnstile token
-    if (!turnstileToken) {
-      return res.status(400).json({ error: 'Security verification required' });
-    }
-
-    try {
-      const turnstileResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          'secret': process.env.TURNSTILE_SECRET_KEY,
-          'response': turnstileToken,
-          'remoteip': req.ip
-        })
-      });
-
-      const turnstileResult = await turnstileResponse.json();
-      
-      if (!turnstileResult.success) {
-        console.log('❌ Turnstile verification failed:', turnstileResult);
-        return res.status(400).json({ error: 'Security verification failed' });
-      }
-      
-      console.log('✅ Turnstile verification successful');
-    } catch (error) {
-      console.error('❌ Turnstile verification error:', error);
-      return res.status(500).json({ error: 'Security verification error' });
-    }
+    const { email, password } = req.body;
 
     // Find user
     const user = await User.findOne({ email });
