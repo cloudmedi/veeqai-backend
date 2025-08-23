@@ -35,6 +35,31 @@ const paymentSchema = new mongoose.Schema({
     default: 'TRY',
     enum: ['TRY', 'USD', 'EUR']
   },
+  billingInterval: {
+    type: String,
+    enum: ['monthly', 'yearly'],
+    default: 'monthly'
+  },
+  
+  // Multi-Currency Support
+  planPricing: {
+    amount: Number,
+    currency: String,
+    converted: Boolean,
+    originalAmount: Number,
+    originalCurrency: String
+  },
+  
+  // User Location Info
+  userLocation: {
+    country: String,
+    countryCode: String,
+    city: String,
+    currency: String,
+    ip: String,
+    confidence: String,
+    source: String
+  },
   
   // Payment Status
   status: {

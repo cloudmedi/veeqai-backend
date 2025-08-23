@@ -1,6 +1,8 @@
 const Iyzipay = require('iyzipay');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../logger');
+const exchangeRateService = require('../ExchangeRateService');
+const locationService = require('../LocationService');
 
 // Lazy load models to avoid circular dependency
 let Payment, Transaction, Plan, User;
@@ -60,10 +62,12 @@ class IyzicoService {
   }
 
   /**
-   * Initialize payment for a plan
+   * Initialize payment for a plan with smart currency detection
    */
-  async initiatePayment(userId, planId, billingInfo = {}) {
+  async initiatePayment(userId, planId, billingInfo = {}, req = null, billingInterval = 'monthly') {
     try {
+      console.log('🚀 [DEBUG] IyzicoService.initiatePayment called with req:', !!req);
+      
       if (!this.isConfigured) {
         throw new Error('Iyzico not configured');
       }
@@ -83,19 +87,98 @@ class IyzicoService {
         throw new Error('Plan not found or inactive');
       }
 
-      // Use TRY for Turkish market to avoid domestic card restrictions
-      const planCurrency = 'TRY'; // Force TRY for all payments
-      if (this.multiCurrencyEnabled && !this.isCurrencySupported(planCurrency)) {
-        throw new Error(`Currency ${planCurrency} is not supported. Supported currencies: ${this.supportedCurrencies.join(', ')}`);
+      // 🎯 SMART CURRENCY DETECTION
+      let userCurrency = 'USD'; // Default
+      let userLocation = null;
+      
+      console.log('🔍 [DEBUG] Starting currency detection...');
+      
+      if (req) {
+        try {
+          console.log('🔍 [DEBUG] Getting user location...');
+          userLocation = await locationService.getUserCurrency(req);
+          userCurrency = userLocation.currency;
+          console.log('🔍 [DEBUG] User location result:', userLocation);
+        } catch (error) {
+          console.log('❌ [DEBUG] Location detection failed:', error.message);
+          logger.warn('⚠️ [IYZICO] Location detection failed, using USD:', error.message);
+        }
+      } else {
+        console.log('⚠️ [DEBUG] No request object provided');
       }
 
-      // Ensure currency is always uppercase for Iyzico API
-      const currency = planCurrency.toUpperCase();
+      // Override with billingInfo currency if provided
+      if (billingInfo.preferredCurrency && ['USD', 'TRY', 'EUR'].includes(billingInfo.preferredCurrency)) {
+        userCurrency = billingInfo.preferredCurrency;
+      }
 
-      logger.info('💰 [IYZICO] Payment currency:', currency);
-      console.log('💳 [IYZICO] Plan found:', { id: plan._id, name: plan.name });
-      console.log('💳 [IYZICO] Plan pricing:', JSON.stringify(plan.pricing, null, 2));
-      console.log('💳 [IYZICO] Payment amount:', plan.pricing?.monthly?.amount);
+      console.log('🔍 [DEBUG] Final user currency:', userCurrency);
+      
+      // Get plan pricing for user's currency based on billing interval
+      let planPricing = null;
+      
+      console.log('🔍 [DEBUG] Using billing interval:', billingInterval);
+      console.log('🔍 [DEBUG] Plan pricing structure:', JSON.stringify(plan.pricing, null, 2));
+      
+      if (!planPricing) {
+        // Try legacy format with correct billing interval
+        const legacyPricing = plan.pricing[billingInterval] || plan.pricing.monthly;
+        console.log('💰 [DEBUG] Selected pricing object:', legacyPricing);
+        console.log('💰 [DEBUG] Has amount?', !!legacyPricing.amount);
+        console.log('💰 [DEBUG] Amount value:', legacyPricing.amount);
+        
+        if (legacyPricing && legacyPricing.amount !== undefined && legacyPricing.currency) {
+          console.log('💰 [DEBUG] Using legacy pricing format');
+          console.log('💰 [DEBUG] Legacy pricing:', legacyPricing);
+          logger.info('💰 [IYZICO] Using legacy pricing format');
+          
+          if (legacyPricing.currency === userCurrency) {
+            // Direct match with legacy format
+            planPricing = {
+              amount: legacyPricing.amount,
+              currency: userCurrency,
+              legacy: true
+            };
+            console.log('💰 [DEBUG] Direct match - plan pricing:', planPricing);
+          } else {
+            console.log('💰 [DEBUG] Converting from', legacyPricing.currency, 'to', userCurrency);
+            // Convert from legacy USD to user currency
+            const convertedAmount = await exchangeRateService.convert(
+              legacyPricing.amount, 
+              legacyPricing.currency, 
+              userCurrency
+            );
+
+            planPricing = {
+              amount: convertedAmount,
+              currency: userCurrency,
+              converted: true,
+              originalAmount: legacyPricing.amount,
+              originalCurrency: legacyPricing.currency,
+              legacy: true
+            };
+            console.log('💰 [DEBUG] Converted plan pricing:', planPricing);
+          }
+        } else {
+          throw new Error('Plan pricing not available');
+        }
+      }
+
+      // Check if currency is supported by Iyzico
+      if (this.multiCurrencyEnabled && !this.isCurrencySupported(userCurrency)) {
+        throw new Error(`Currency ${userCurrency} is not supported. Supported currencies: ${this.supportedCurrencies.join(', ')}`);
+      }
+
+      // Final currency and amount
+      const currency = userCurrency.toUpperCase();
+      const amount = planPricing.amount;
+
+      logger.info('💰 [IYZICO] Payment details:', {
+        userCurrency,
+        amount,
+        userCountry: userLocation?.country || 'Unknown',
+        converted: planPricing.converted || false
+      });
       
       logger.info('💳 [IYZICO] Plan found:', { id: plan._id, name: plan.name });
       logger.info('💳 [IYZICO] Plan pricing:', JSON.stringify(plan.pricing, null, 2));
@@ -109,16 +192,19 @@ class IyzicoService {
         userId,
         planId,
         conversationId,
-        amount: plan.pricing.monthly.amount * 30, // Convert to TRY
-        currency: 'TRY',
+        amount: amount,
+        currency: currency,
+        billingInterval: billingInterval, // Store billing interval (monthly/yearly)
+        planPricing: planPricing, // Store original pricing info
+        userLocation: userLocation, // Store user location for analytics
         billingInfo: {
           contactName: billingInfo.contactName || user.name,
-          city: billingInfo.city || 'Istanbul',
-          country: billingInfo.country || 'Turkey',
+          city: billingInfo.city || userLocation?.city || 'Istanbul',
+          country: billingInfo.country || userLocation?.country || 'Turkey',
           address: billingInfo.address || 'Address',
           zipCode: billingInfo.zipCode || '34000',
           registrationAddress: billingInfo.registrationAddress || 'Address',
-          ip: billingInfo.ip || '127.0.0.1'
+          ip: billingInfo.ip || userLocation?.ip || '127.0.0.1'
         },
         successUrl: process.env.PAYMENT_SUCCESS_URL || 'https://app.veeq.ai/payment/success',
         failureUrl: process.env.PAYMENT_FAILURE_URL || 'https://app.veeq.ai/payment/failed',
@@ -127,17 +213,23 @@ class IyzicoService {
 
       await payment.save();
 
-      // Prepare Iyzico request
+      // Prepare Iyzico request with smart installment support
+      const enableInstallments = (currency === 'TRY' && plan.supportsInstallments('TRY', 'monthly'));
+      const maxInstallments = enableInstallments ? plan.getMaxInstallments('TRY', 'monthly') : 1;
+      
+      const installmentOptions = enableInstallments ? 
+        Array.from({length: maxInstallments}, (_, i) => i + 1) : [1];
+
       const request = {
-        locale: 'tr',
+        locale: currency === 'TRY' ? 'tr' : 'en',
         conversationId,
-        price: (plan.pricing.monthly.amount * 30).toString(), // Convert USD to TRY (approx)
-        paidPrice: (plan.pricing.monthly.amount * 30).toString(),
-        currency: 'TRY',
+        price: amount.toString(),
+        paidPrice: amount.toString(),
+        currency: currency,
         basketId: `basket_${payment._id}`,
         paymentGroup: 'PRODUCT',
         callbackUrl: payment.callbackUrl,
-        // enabledInstallments: [1], // Disabled for multi-currency USD payments
+        enabledInstallments: installmentOptions,
         buyer: {
           id: user._id.toString(),
           name: user.name.split(' ')[0] || 'User',
@@ -174,7 +266,7 @@ class IyzicoService {
             category1: 'Subscription',
             category2: 'AI Services',
             itemType: 'VIRTUAL',
-            price: payment.amount.toString()
+            price: amount.toString()
           }
         ]
       };
@@ -222,9 +314,7 @@ class IyzicoService {
           conversationId,
           paymentId: result.paymentId,
           paymentPageUrl: result.paymentPageUrl,
-          token: result.token,
-          // Include HTML content for popup/iframe integration
-          checkoutFormContent: result.checkoutFormContent || null
+          token: result.token
         };
 
         logger.info('💰 [IYZICO] Returning response data:', JSON.stringify(responseData, null, 2));

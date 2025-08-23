@@ -98,14 +98,7 @@ class VeeqAIServer {
     // Security middleware
     this.app.use(helmet({
       crossOriginEmbedderPolicy: false,
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"],
-        },
-      },
+      contentSecurityPolicy: false, // Disable CSP completely
     }));
 
     // Compression

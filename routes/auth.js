@@ -8,6 +8,7 @@ const Plan = require('../models/Plan');
 const AuthMiddleware = require('../middleware/auth-unified');
 const { multiRateLimit } = require('../middleware/rateLimit');
 const monitoring = require('../services/monitoring');
+const { google } = require('googleapis');
 
 // DEPRECATED - Use JWTService instead
 const generateToken = (userId, email, role) => {
@@ -30,6 +31,18 @@ const registerRateLimit = multiRateLimit({
   userLimit: 1,
   ipUserLimit: 1,
   getUserId: (req) => req.body.email
+});
+
+// CSRF Token endpoint
+router.get('/csrf-token', (req, res) => {
+  // Generate a simple token (you can make this more secure)
+  const token = require('crypto').randomBytes(32).toString('hex');
+  
+  // Set it in session or send directly
+  res.json({ 
+    csrfToken: token,
+    success: true 
+  });
 });
 
 // Register
@@ -126,7 +139,38 @@ router.post('/login', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { email, password, turnstileToken } = req.body;
+
+    // Verify Cloudflare Turnstile token
+    if (!turnstileToken) {
+      return res.status(400).json({ error: 'Security verification required' });
+    }
+
+    try {
+      const turnstileResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          'secret': process.env.TURNSTILE_SECRET_KEY,
+          'response': turnstileToken,
+          'remoteip': req.ip
+        })
+      });
+
+      const turnstileResult = await turnstileResponse.json();
+      
+      if (!turnstileResult.success) {
+        console.log('❌ Turnstile verification failed:', turnstileResult);
+        return res.status(400).json({ error: 'Security verification failed' });
+      }
+      
+      console.log('✅ Turnstile verification successful');
+    } catch (error) {
+      console.error('❌ Turnstile verification error:', error);
+      return res.status(500).json({ error: 'Security verification error' });
+    }
 
     // Find user
     const user = await User.findOne({ email });
@@ -405,6 +449,246 @@ router.get('/plans', async (req, res) => {
   } catch (error) {
     console.error('Error fetching plans:', error);
     res.status(500).json({ error: 'Failed to fetch plans' });
+  }
+});
+
+// Google OAuth Configuration  
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.NODE_ENV === 'production' 
+    ? 'https://api.veeq.ai/api/auth/google/callback'
+    : 'http://localhost:5000/api/auth/google/callback'
+);
+
+// Google OAuth - Generate Auth URL
+router.get('/google', (req, res) => {
+  try {
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile'
+      ],
+      prompt: 'consent'
+    });
+    
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Google OAuth initiation error:', error);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=oauth_error`);
+  }
+});
+
+// Google OAuth - Callback Handler
+router.get('/google/callback', async (req, res) => {
+  try {
+    const { code, error } = req.query;
+    
+    if (error) {
+      console.error('Google OAuth error:', error);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=access_denied`);
+    }
+    
+    if (!code) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=no_code`);
+    }
+    
+    // Exchange code for tokens
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+    
+    // Get user info from Google
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const userInfo = await oauth2.userinfo.get();
+    
+    const { id: googleId, email, name, picture } = userInfo.data;
+    
+    if (!email) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=no_email`);
+    }
+    
+    // Find or create user
+    let user = await User.findOne({ 
+      $or: [
+        { email: email },
+        { 'oauth.google.id': googleId }
+      ]
+    });
+    
+    if (user) {
+      // Update existing user with Google info
+      user.oauth = user.oauth || {};
+      user.oauth.google = {
+        id: googleId,
+        email: email,
+        name: name,
+        picture: picture
+      };
+      user.lastLogin = new Date();
+      await user.save();
+    } else {
+      // Create new user
+      user = new User({
+        name: name || 'Google User',
+        email: email,
+        password: null, // No password for OAuth users
+        oauth: {
+          google: {
+            id: googleId,
+            email: email,
+            name: name,
+            picture: picture
+          }
+        },
+        emailVerified: true, // Google emails are pre-verified
+        lastLogin: new Date()
+      });
+      await user.save();
+      
+      // Create free subscription for new user
+      try {
+        const freePlan = await Plan.findOne({ name: 'free', status: 'active' });
+        if (freePlan) {
+          const subscription = new Subscription({
+            user: user._id,
+            plan: freePlan._id,
+            planName: freePlan.name,
+            status: 'active',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)), // 30 days
+            pricing: {
+              amount: freePlan.pricing.monthly.amount,
+              currency: freePlan.pricing.monthly.currency,
+              interval: 'monthly'
+            },
+            credits: {
+              monthly: freePlan.credits.monthly,
+              used: 0,
+              rollover: 0
+            }
+          });
+          await subscription.save();
+        }
+      } catch (subError) {
+        console.error('Error creating subscription for Google user:', subError);
+      }
+    }
+    
+    // Generate JWT tokens
+    const accessToken = JWTService.generateAccessToken(user._id, user.email, user.role);
+    const refreshToken = JWTService.generateRefreshToken(user._id, user.email);
+    
+    // Track successful login
+    monitoring.trackLogin(true, 'google_oauth');
+    
+    console.log('✅ Google OAuth login successful:', { userId: user._id, email: user.email });
+    
+    // Send success message to popup opener
+    const authData = {
+      tokens: {
+        accessToken: accessToken,
+        refreshToken: refreshToken
+      },
+      user: {
+        id: user._id.toString(),
+        name: user.name || '',
+        email: user.email,
+        credits: user.credits || 0,
+        subscription: user.subscription || 'free',
+        voiceSlots: user.voiceSlots || 0
+      }
+    };
+    
+    // Disable CSP and prevent caching
+    res.removeHeader('Content-Security-Policy');
+    res.setHeader('Content-Security-Policy', '');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    const instantCloseHtml = `
+    <script>
+      // Send message to parent window (cross-origin safe)
+      window.opener.postMessage({
+        type: 'GOOGLE_AUTH_SUCCESS',
+        tokens: {
+          accessToken: '${authData.tokens.accessToken}',
+          refreshToken: '${authData.tokens.refreshToken}'
+        },
+        user: ${JSON.stringify(authData.user).replace(/'/g, "\\'")}
+      }, '${process.env.FRONTEND_URL || 'http://localhost:5173'}');
+      
+      // Close popup
+      window.close();
+    </script>
+    `;
+    
+    res.send(instantCloseHtml);
+    
+  } catch (error) {
+    console.error('Google OAuth callback error:', error);
+    
+    // Send error message to popup opener
+    const errorHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Login Failed</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+          color: white;
+        }
+        .container {
+          text-align: center;
+          padding: 2rem;
+        }
+        .error-icon {
+          font-size: 3rem;
+          margin-bottom: 1rem;
+        }
+        .title {
+          font-size: 1.5rem;
+          margin-bottom: 0.5rem;
+        }
+        .subtitle {
+          opacity: 0.9;
+          font-size: 1rem;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="error-icon">❌</div>
+        <div class="title">Login Failed</div>
+        <div class="subtitle">Please try again...</div>
+      </div>
+      
+      <script>
+        // Send error message to parent window
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'GOOGLE_AUTH_ERROR',
+            error: 'callback_error'
+          }, '${process.env.FRONTEND_URL || 'http://localhost:5173'}');
+          window.close();
+        } else {
+          // Fallback redirect if no opener
+          window.location.href = '${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=callback_error';
+        }
+      </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(errorHtml);
   }
 });
 

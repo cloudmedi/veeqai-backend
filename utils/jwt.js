@@ -1,18 +1,33 @@
 const jwt = require('jsonwebtoken');
 const redis = require('redis');
+const NodeCache = require('node-cache');
 
-const client = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
+// Create memory cache instance for local development
+const memoryCache = new NodeCache({ 
+  stdTTL: 86400, // 24 hours default TTL
+  checkperiod: 600 // Check for expired keys every 10 minutes
 });
 
+// Redis client for production (Railway)
+let client = null;
 let redisConnected = false;
-client.connect().then(() => {
-  redisConnected = true;
-  console.log('✅ Redis connected');
-}).catch(error => {
-  console.warn('⚠️ Redis connection failed, continuing without session versioning:', error.message);
-  redisConnected = false;
-});
+
+// Only try to connect to Redis if REDIS_URL is provided (Railway environment)
+if (process.env.REDIS_URL) {
+  client = redis.createClient({
+    url: process.env.REDIS_URL
+  });
+  
+  client.connect().then(() => {
+    redisConnected = true;
+    console.log('✅ Redis connected (Production mode)');
+  }).catch(error => {
+    console.warn('⚠️ Redis connection failed, falling back to memory cache:', error.message);
+    redisConnected = false;
+  });
+} else {
+  console.log('💾 Using memory cache (Development mode - Redis not required)');
+}
 
 /**
  * UNIFIED JWT TOKEN SERVICE
@@ -29,12 +44,16 @@ class JWTService {
   static async generateAccessToken(userId, email, role = 'user') {
     // Get current session version for this user
     let sv = '0';
-    if (redisConnected) {
+    if (redisConnected && client) {
       try {
         sv = await client.get(`session_version:${userId}`) ?? '0';
       } catch (error) {
-        console.warn('⚠️ Redis error, using default session version:', error.message);
+        console.warn('⚠️ Redis error, using memory cache:', error.message);
+        sv = memoryCache.get(`session_version:${userId}`) || '0';
       }
+    } else {
+      // Use memory cache in development
+      sv = memoryCache.get(`session_version:${userId}`) || '0';
     }
     
     const payload = {
@@ -126,42 +145,23 @@ class JWTService {
     return Date.now() >= decoded.exp * 1000;
   }
 
-  /**
-   * Revoke all sessions for a user (logout all devices)
-   * @param {string} userId - User ID
-   * @returns {Promise<number>} New session version
-   */
-  static async revokeAllSessions(userId) {
-    if (!redisConnected) {
-      console.warn('⚠️ Redis not connected, cannot revoke sessions');
-      return 1;
-    }
-    try {
-      const newSV = await client.incr(`session_version:${userId}`);
-      console.log(`Sessions revoked - userId: ${userId}, new sv: ${newSV}`);
-      return newSV;
-    } catch (error) {
-      console.warn('⚠️ Redis error during session revocation:', error.message);
-      return 1;
-    }
-  }
 
   /**
    * Initialize session version for new user (default: 0)
    * @param {string} userId - User ID
    */
   static async initializeSession(userId) {
-    if (!redisConnected) {
-      console.warn('⚠️ Redis not connected, cannot initialize session');
-      return;
-    }
-    try {
-      const exists = await client.exists(`session_version:${userId}`);
-      if (!exists) {
+    if (redisConnected && client) {
+      try {
+        // Always reset to 0 on login for consistency
         await client.set(`session_version:${userId}`, '0');
+      } catch (error) {
+        console.warn('⚠️ Redis error, using memory cache:', error.message);
+        memoryCache.set(`session_version:${userId}`, '0');
       }
-    } catch (error) {
-      console.warn('⚠️ Redis error during session initialization:', error.message);
+    } else {
+      // Use memory cache in development - always reset to 0
+      memoryCache.set(`session_version:${userId}`, '0');
     }
   }
 
@@ -171,14 +171,28 @@ class JWTService {
    * @returns {Promise<boolean>} Success status
    */
   static async revokeAllSessions(userId) {
-    if (!redisConnected) {
-      console.warn('⚠️ Redis not connected, cannot revoke sessions');
-      return false;
-    }
     try {
-      const currentVersion = await client.get(`session_version:${userId}`) || '0';
-      const newVersion = (parseInt(currentVersion) + 1).toString();
-      await client.set(`session_version:${userId}`, newVersion);
+      let currentVersion = '0';
+      let newVersion = '1';
+      
+      if (redisConnected && client) {
+        try {
+          currentVersion = await client.get(`session_version:${userId}`) || '0';
+          newVersion = (parseInt(currentVersion) + 1).toString();
+          await client.set(`session_version:${userId}`, newVersion);
+        } catch (error) {
+          console.warn('⚠️ Redis error, using memory cache:', error.message);
+          currentVersion = memoryCache.get(`session_version:${userId}`) || '0';
+          newVersion = (parseInt(currentVersion) + 1).toString();
+          memoryCache.set(`session_version:${userId}`, newVersion);
+        }
+      } else {
+        // Use memory cache in development
+        currentVersion = memoryCache.get(`session_version:${userId}`) || '0';
+        newVersion = (parseInt(currentVersion) + 1).toString();
+        memoryCache.set(`session_version:${userId}`, newVersion);
+      }
+      
       console.log(`✅ All sessions revoked for user ${userId}, new version: ${newVersion}`);
       return true;
     } catch (error) {
@@ -193,13 +207,20 @@ class JWTService {
    * @returns {Promise<string>} Session version
    */
   static async getSessionVersion(userId) {
-    if (!redisConnected) {
-      return '0';
-    }
     try {
-      return await client.get(`session_version:${userId}`) || '0';
+      if (redisConnected && client) {
+        try {
+          return await client.get(`session_version:${userId}`) || '0';
+        } catch (error) {
+          console.warn('⚠️ Redis error, using memory cache:', error.message);
+          return memoryCache.get(`session_version:${userId}`) || '0';
+        }
+      } else {
+        // Use memory cache in development
+        return memoryCache.get(`session_version:${userId}`) || '0';
+      }
     } catch (error) {
-      console.warn('⚠️ Redis error getting session version:', error.message);
+      console.warn('⚠️ Error getting session version:', error.message);
       return '0';
     }
   }

@@ -23,13 +23,32 @@ const planSchema = new mongoose.Schema({
     lowercase: true
   },
   
-  // Pricing
+  // Multi-Currency Pricing
   pricing: {
     monthly: {
-      amount: {
-        type: Number,
-        required: true
+      // Multiple currencies support
+      USD: {
+        amount: Number,
+        stripePriceId: String
       },
+      TRY: {
+        amount: Number,
+        iyzicoPlanId: String,
+        allowInstallments: {
+          type: Boolean,
+          default: true
+        },
+        maxInstallments: {
+          type: Number,
+          default: 12
+        }
+      },
+      EUR: {
+        amount: Number,
+        stripePriceId: String
+      },
+      // Legacy support
+      amount: Number, // Fallback to USD if multi-currency not available
       currency: {
         type: String,
         default: 'USD'
@@ -38,6 +57,31 @@ const planSchema = new mongoose.Schema({
       iyzicoPlanId: String
     },
     yearly: {
+      // Multiple currencies support
+      USD: {
+        amount: Number,
+        stripePriceId: String,
+        discount: Number
+      },
+      TRY: {
+        amount: Number,
+        iyzicoPlanId: String,
+        discount: Number,
+        allowInstallments: {
+          type: Boolean,
+          default: true
+        },
+        maxInstallments: {
+          type: Number,
+          default: 12
+        }
+      },
+      EUR: {
+        amount: Number,
+        stripePriceId: String,
+        discount: Number
+      },
+      // Legacy support
       amount: Number,
       currency: {
         type: String,
@@ -45,9 +89,28 @@ const planSchema = new mongoose.Schema({
       },
       stripePriceId: String,
       iyzicoPlanId: String,
-      discount: Number // Percentage discount for yearly
+      discount: Number
     },
     setup: {
+      USD: {
+        amount: {
+          type: Number,
+          default: 0
+        }
+      },
+      TRY: {
+        amount: {
+          type: Number,
+          default: 0
+        }
+      },
+      EUR: {
+        amount: {
+          type: Number,
+          default: 0
+        }
+      },
+      // Legacy support
       amount: {
         type: Number,
         default: 0
@@ -482,6 +545,59 @@ planSchema.statics.comparePlans = async function(planIds) {
   });
   
   return comparison;
+};
+
+// Helper methods for multi-currency support
+planSchema.methods.getPricing = function(currency = 'USD', interval = 'monthly') {
+  // Try multi-currency first
+  if (this.pricing[interval][currency]) {
+    return {
+      amount: this.pricing[interval][currency].amount,
+      currency: currency,
+      ...this.pricing[interval][currency]
+    };
+  }
+  
+  // Fallback to legacy format
+  if (this.pricing[interval].amount && this.pricing[interval].currency === currency) {
+    return {
+      amount: this.pricing[interval].amount,
+      currency: this.pricing[interval].currency,
+      stripePriceId: this.pricing[interval].stripePriceId,
+      iyzicoPlanId: this.pricing[interval].iyzicoPlanId
+    };
+  }
+  
+  return null;
+};
+
+planSchema.methods.getSupportedCurrencies = function(interval = 'monthly') {
+  const currencies = [];
+  const pricing = this.pricing[interval];
+  
+  // Check multi-currency support
+  ['USD', 'TRY', 'EUR'].forEach(currency => {
+    if (pricing[currency] && pricing[currency].amount) {
+      currencies.push(currency);
+    }
+  });
+  
+  // Check legacy format
+  if (currencies.length === 0 && pricing.amount && pricing.currency) {
+    currencies.push(pricing.currency);
+  }
+  
+  return currencies;
+};
+
+planSchema.methods.supportsInstallments = function(currency = 'TRY', interval = 'monthly') {
+  const pricing = this.pricing[interval][currency];
+  return pricing && pricing.allowInstallments;
+};
+
+planSchema.methods.getMaxInstallments = function(currency = 'TRY', interval = 'monthly') {
+  const pricing = this.pricing[interval][currency];
+  return pricing && pricing.maxInstallments || 1;
 };
 
 module.exports = mongoose.model('Plan', planSchema);

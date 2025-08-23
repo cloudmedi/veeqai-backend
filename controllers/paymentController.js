@@ -14,7 +14,7 @@ const paymentController = {
    */
   async initiatePayment(req, res) {
     try {
-      const { planId, billingInfo = {} } = req.body;
+      const { planId, billingInfo = {}, billingInterval = 'monthly' } = req.body;
       const userId = req.user.id;
 
       // Validation
@@ -46,7 +46,7 @@ const paymentController = {
       console.log('📋 [PAYMENT] Request body:', JSON.stringify(req.body, null, 2));
       logger.info('📋 [PAYMENT] Request body:', JSON.stringify(req.body, null, 2));
 
-      const result = await IyzicoService.initiatePayment(userId, planId, billingInfo);
+      const result = await IyzicoService.initiatePayment(userId, planId, billingInfo, req, billingInterval);
 
       logger.info('💰 [PAYMENT] IyzicoService result:', JSON.stringify(result, null, 2));
 

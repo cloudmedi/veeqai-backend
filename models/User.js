@@ -19,7 +19,10 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      // Password not required for OAuth users
+      return !this.oauth || (!this.oauth.google && !this.oauth.github && !this.oauth.microsoft);
+    },
     minlength: 6
   },
   
@@ -78,6 +81,27 @@ const userSchema = new mongoose.Schema({
   }],
   
   // OAuth
+  oauth: {
+    google: {
+      id: String,
+      email: String,
+      name: String,
+      picture: String
+    },
+    github: {
+      id: String,
+      username: String,
+      email: String,
+      avatar_url: String
+    },
+    microsoft: {
+      id: String,
+      email: String,
+      name: String
+    }
+  },
+  
+  // Legacy OAuth fields (for backward compatibility)
   googleId: String,
   githubId: String,
   microsoftId: String,
@@ -120,7 +144,7 @@ userSchema.virtual('isLocked').get(function() {
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   
   try {
     const salt = await bcrypt.genSalt(12);

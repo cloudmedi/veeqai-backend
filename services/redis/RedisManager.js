@@ -1,6 +1,13 @@
 const Redis = require('ioredis');
 const EventEmitter = require('events');
 const logger = require('../logger');
+const NodeCache = require('node-cache');
+
+// Memory cache fallback for local development
+const memoryCache = new NodeCache({ 
+  stdTTL: 3600, // 1 hour default TTL
+  checkperiod: 600 // Check for expired keys every 10 minutes
+});
 
 class RedisManager extends EventEmitter {
   constructor() {
@@ -25,6 +32,14 @@ class RedisManager extends EventEmitter {
 
   async initialize() {
     try {
+      // Check if Redis URL is provided (Railway/Production)
+      if (!process.env.REDIS_URL) {
+        logger.info('💾 [REDIS] No REDIS_URL found, using memory cache for local development');
+        this.isConnected = false;
+        this.useMemoryCache = true;
+        return true;
+      }
+
       // Set a timeout for the entire initialization process
       const initTimeout = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Redis initialization timeout')), 10000)
@@ -48,6 +63,7 @@ class RedisManager extends EventEmitter {
         await this.performHealthCheck();
         
         this.isConnected = true;
+        this.useMemoryCache = false;
         logger.info('✅ [REDIS] Connected successfully');
         
         return true;
@@ -57,10 +73,10 @@ class RedisManager extends EventEmitter {
       return await Promise.race([initProcess(), initTimeout]);
       
     } catch (error) {
-      logger.error('❌ [REDIS] Initialization failed:', error);
+      logger.error('❌ [REDIS] Initialization failed, falling back to memory cache:', error.message);
       this.isConnected = false;
-      await this.handleConnectionFailure(error);
-      throw error;
+      this.useMemoryCache = true;
+      return true; // Don't throw, continue with memory cache
     }
   }
 
@@ -263,6 +279,11 @@ class RedisManager extends EventEmitter {
 
   // High-level Redis operations with error handling
   async publish(channel, message) {
+    if (this.useMemoryCache) {
+      // In memory cache mode, just log the publish attempt
+      logger.debug(`📡 [MEMORY] Published to ${channel} (memory mode):`, message);
+      return 1;
+    }
     return await this.executeWithCircuitBreaker(async () => {
       const serializedMessage = JSON.stringify({
         ...message,
@@ -277,6 +298,11 @@ class RedisManager extends EventEmitter {
   }
 
   async subscribe(channels, callback) {
+    if (this.useMemoryCache) {
+      // In memory cache mode, subscriptions won't work across instances
+      logger.debug(`📡 [MEMORY] Subscribed to channels (memory mode):`, channels);
+      return;
+    }
     return await this.executeWithCircuitBreaker(async () => {
       await this.subscriber.subscribe(...channels);
       
@@ -295,6 +321,10 @@ class RedisManager extends EventEmitter {
   }
 
   async setCache(key, value, ttl = 3600) {
+    if (this.useMemoryCache) {
+      memoryCache.set(key, value, ttl);
+      return 'OK';
+    }
     return await this.executeWithCircuitBreaker(async () => {
       const serializedValue = JSON.stringify(value);
       return await this.cache.setex(key, ttl, serializedValue);
@@ -302,6 +332,9 @@ class RedisManager extends EventEmitter {
   }
 
   async getCache(key) {
+    if (this.useMemoryCache) {
+      return memoryCache.get(key) || null;
+    }
     return await this.executeWithCircuitBreaker(async () => {
       const value = await this.cache.get(key);
       return value ? JSON.parse(value) : null;
@@ -309,6 +342,9 @@ class RedisManager extends EventEmitter {
   }
 
   async deleteCache(key) {
+    if (this.useMemoryCache) {
+      return memoryCache.del(key) ? 1 : 0;
+    }
     return await this.executeWithCircuitBreaker(async () => {
       return await this.cache.del(key);
     });
