@@ -61,6 +61,7 @@ console.log('🔄 [DEBUG] Applying CORS...');
 app.use(cors({
   origin: [
     'https://app.veeq.ai',
+    'https://hub.veeq.ai',
     'https://veeq.ai', 
     'https://www.veeq.ai',
     'http://localhost:3000',
@@ -70,7 +71,7 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-Token', 'X-Admin-CSRF-Token', 'X-Client-Type', 'X-Client-Version', 'X-Request-ID', 'X-Request-Time', 'X-Admin-Request-Time', 'X-Admin-User'],
   optionsSuccessStatus: 200
 }));
 console.log('🔄 [DEBUG] CORS applied');
@@ -79,7 +80,7 @@ console.log('🔄 [DEBUG] CORS applied');
 app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Origin', req.headers.origin);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token, X-Admin-CSRF-Token, X-Client-Type, X-Client-Version, X-Request-ID, X-Request-Time, X-Admin-Request-Time, X-Admin-User');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.status(200).end();
 });
